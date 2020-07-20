@@ -33,6 +33,22 @@ class ManutentionRepository extends ServiceEntityRepository
         parent::__construct($registry, Manutention::class);
     }
 
+    /**
+     * @return mixed
+     * @throws NoResultException
+     * @throws NonUniqueResultException
+     */
+    public function countAll() {
+        $queryBuilder = $this->createQueryBuilder('manutention');
+        $queryBuilderExpr = $queryBuilder->expr();
+        return $queryBuilder
+            ->select(
+                $queryBuilderExpr->count('manutention.id')
+            )
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     public function countByStatut($statut){
         $entityManager = $this->getEntityManager();
         $query = $entityManager->createQuery(
@@ -99,7 +115,14 @@ class ManutentionRepository extends ServiceEntityRepository
         return $query->execute();
     }
 
-	public function findByParamAndFilters($params, $filters)
+    /**
+     * @param $params
+     * @param $filters
+     * @return array
+     * @throws NoResultException
+     * @throws NonUniqueResultException
+     */
+    public function findByParamAndFilters($params, $filters)
     {
         $em = $this->getEntityManager();
         $qb = $em->createQueryBuilder();
@@ -108,7 +131,7 @@ class ManutentionRepository extends ServiceEntityRepository
 			->select('m')
             ->from('App\Entity\Manutention', 'm');
 
-        $countTotal = count($qb->getQuery()->getResult());
+        $countTotal = $this->countAll();
 
         // filtres sup
         foreach ($filters as $filter) {

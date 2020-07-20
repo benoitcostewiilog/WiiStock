@@ -4,6 +4,8 @@ namespace App\Repository;
 
 use App\Entity\Acheminements;
 use Doctrine\ORM\EntityRepository;
+use Doctrine\ORM\NonUniqueResultException;
+use Doctrine\ORM\NoResultException;
 
 
 /**
@@ -24,6 +26,29 @@ class AcheminementsRepository extends EntityRepository
         'Statut' => 'statut',
     ];
 
+    /**
+     * @return mixed
+     * @throws NoResultException
+     * @throws NonUniqueResultException
+     */
+    public function countAll() {
+        $queryBuilder = $this->createQueryBuilder('acheminements');
+        $queryBuilderExpr = $queryBuilder->expr();
+        return $queryBuilder
+            ->select(
+                $queryBuilderExpr->count('acheminements.id')
+            )
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * @param $params
+     * @param $filters
+     * @return array
+     * @throws NoResultException
+     * @throws NonUniqueResultException
+     */
     public function findByParamAndFilters($params, $filters)
     {
         $em = $this->getEntityManager();
@@ -33,7 +58,7 @@ class AcheminementsRepository extends EntityRepository
             ->select('a')
             ->from('App\Entity\Acheminements', 'a');
 
-        $countTotal = count($qb->getQuery()->getResult());
+        $countTotal = $this->countAll();
 
         // filtres sup
         foreach ($filters as $filter) {
@@ -90,9 +115,9 @@ class AcheminementsRepository extends EntityRepository
             }
         }
 
-        // compte éléments filtrés
-        $countFiltered = count($qb->getQuery()->getResult());
-
+        $qb->select('count(a)');
+        $countFiltered = $qb->getQuery()->getSingleScalarResult();
+        $qb->select('a');
         if ($params) {
             if (!empty($params->get('start'))) $qb->setFirstResult($params->get('start'));
             if (!empty($params->get('length'))) $qb->setMaxResults($params->get('length'));

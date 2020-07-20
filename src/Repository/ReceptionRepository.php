@@ -138,6 +138,22 @@ class ReceptionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @return mixed
+     * @throws NoResultException
+     * @throws NonUniqueResultException
+     */
+    public function countAll() {
+        $queryBuilder = $this->createQueryBuilder('reception');
+        $queryBuilderExpr = $queryBuilder->expr();
+        return $queryBuilder
+            ->select(
+                $queryBuilderExpr->count('reception.id')
+            )
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     public function findByParamAndFilters($params, $filters)
     {
         $em = $this->getEntityManager();
@@ -147,7 +163,7 @@ class ReceptionRepository extends ServiceEntityRepository
             ->select('r')
             ->from('App\Entity\Reception', 'r');
 
-        $countTotal = count($qb->getQuery()->getResult());
+        $countTotal = $this->countAll();
         // filtres sup
         foreach ($filters as $filter) {
             switch($filter['field']) {
@@ -221,8 +237,10 @@ class ReceptionRepository extends ServiceEntityRepository
             }
         }
 
+        $qb->select('count(r)');
         // compte éléments filtrés
-        $countFiltered = count($qb->getQuery()->getResult());
+        $countFiltered = $qb->getQuery()->getSingleScalarResult();
+        $qb->select('r');
 
         if ($params) {
             if (!empty($params->get('start'))) $qb->setFirstResult($params->get('start'));
