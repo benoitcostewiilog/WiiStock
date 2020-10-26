@@ -21,7 +21,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
 
@@ -214,7 +213,7 @@ class UtilisateurController extends AbstractController
                 'msg' => 'L\'utilisateur <strong>' . $data['username'] . '</strong> a bien été créé.'
             ]);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -258,7 +257,7 @@ class UtilisateurController extends AbstractController
                     ]
                     : null]);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -422,7 +421,7 @@ class UtilisateurController extends AbstractController
                 'msg' => 'L\'utilisateur <strong>' . $utilisateur->getUsername() . '</strong> a bien été modifié.'
             ]);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -454,7 +453,7 @@ class UtilisateurController extends AbstractController
                 return new JsonResponse(false); //TODO gérer erreur
             }
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -472,7 +471,7 @@ class UtilisateurController extends AbstractController
 
             return new JsonResponse($data);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -499,7 +498,7 @@ class UtilisateurController extends AbstractController
 
 			return new JsonResponse(['delete' => $delete, 'html' => $html]);
 		}
-		throw new NotFoundHttpException('404');
+		throw new BadRequestHttpException();
 	}
 
     /**
@@ -536,7 +535,7 @@ class UtilisateurController extends AbstractController
                 'msg' => 'L\'utilisateur <strong>' . $username . '</strong> a bien été supprimé.'
             ]);
 		}
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -555,7 +554,7 @@ class UtilisateurController extends AbstractController
             $results = $utilisateurRepository->getIdAndLibelleBySearch($search);
             return new JsonResponse(['results' => $results]);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**

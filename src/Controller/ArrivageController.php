@@ -54,7 +54,6 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Twig\Environment as Twig_Environment;
@@ -210,7 +209,7 @@ class ArrivageController extends AbstractController
 
             return new JsonResponse($data);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -373,7 +372,7 @@ class ArrivageController extends AbstractController
                 'alertConfigs' => $alertConfigs
             ]);
         }
-        throw new NotFoundHttpException('404 not found');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -426,7 +425,7 @@ class ArrivageController extends AbstractController
 
             return new JsonResponse(['html' => $html, 'acheteurs' => $acheteursUsernames]);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -595,7 +594,7 @@ class ArrivageController extends AbstractController
             ];
             return new JsonResponse($response);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -654,7 +653,7 @@ class ArrivageController extends AbstractController
             return new JsonResponse($data);
         }
 
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -698,7 +697,7 @@ class ArrivageController extends AbstractController
 
             return new JsonResponse($html);
         } else {
-            throw new NotFoundHttpException('404');
+            throw new BadRequestHttpException();
         }
     }
 
@@ -724,7 +723,7 @@ class ArrivageController extends AbstractController
 
             return new JsonResponse($response);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -747,7 +746,7 @@ class ArrivageController extends AbstractController
             return new JsonResponse($html);
 
         } else {
-            throw new NotFoundHttpException('404');
+            throw new BadRequestHttpException();
         }
     }
 
@@ -791,7 +790,7 @@ class ArrivageController extends AbstractController
 
             return new JsonResponse($html);
         } else {
-            throw new NotFoundHttpException('404');
+            throw new BadRequestHttpException();
         }
     }
 
@@ -907,7 +906,7 @@ class ArrivageController extends AbstractController
                 }
             );
         } else {
-            throw new NotFoundHttpException('404');
+            throw new BadRequestHttpException();
         }
     }
 
@@ -1070,7 +1069,7 @@ class ArrivageController extends AbstractController
 
             return new JsonResponse($response);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -1095,7 +1094,7 @@ class ArrivageController extends AbstractController
             $entityManager->flush();
             return new JsonResponse();
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -1135,7 +1134,7 @@ class ArrivageController extends AbstractController
                 'arrivage' => $arrivage->getNumeroArrivage()
             ]);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -1175,7 +1174,7 @@ class ArrivageController extends AbstractController
 
             return new JsonResponse($data);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -1220,7 +1219,7 @@ class ArrivageController extends AbstractController
 
             return new JsonResponse(['html' => $html, 'colis' => $colisCode]);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -1352,7 +1351,7 @@ class ArrivageController extends AbstractController
 
             return new JsonResponse($response);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -1396,7 +1395,7 @@ class ArrivageController extends AbstractController
 
             return new JsonResponse($html);
         } else {
-            throw new NotFoundHttpException('404');
+            throw new BadRequestHttpException();
         }
     }
 
@@ -1433,7 +1432,7 @@ class ArrivageController extends AbstractController
 
             return new JsonResponse($data);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -1492,7 +1491,7 @@ class ArrivageController extends AbstractController
             }
         } else {
             if (!$colis->getArrivage() || $colis->getArrivage()->getId() !== $arrivage->getId()) {
-                throw new NotFoundHttpException("404");
+                throw new BadRequestHttpException();
             }
 
             $total = $arrivage->getPacks()->count();
@@ -1702,7 +1701,7 @@ class ArrivageController extends AbstractController
 
             return new JsonResponse();
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -1748,6 +1747,6 @@ class ArrivageController extends AbstractController
             $columns = $arrivageDataService->getColumnVisibleConfig($entityManager, $currentUser);
             return new JsonResponse($columns);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 }

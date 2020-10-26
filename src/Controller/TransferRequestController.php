@@ -27,9 +27,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
@@ -81,7 +80,7 @@ class TransferRequestController extends AbstractController {
 
             return new JsonResponse($data);
         } else {
-            throw new NotFoundHttpException('404');
+            throw new BadRequestHttpException();
         }
     }
 
@@ -150,7 +149,7 @@ class TransferRequestController extends AbstractController {
                 'redirect' => $this->generateUrl('transfer_request_show', ['id' => $transfer->getId()]),
             ]);
         }
-        throw new NotFoundHttpException('404 not found');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -191,7 +190,7 @@ class TransferRequestController extends AbstractController {
             return new JsonResponse($json);
         }
 
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -228,7 +227,7 @@ class TransferRequestController extends AbstractController {
                 'msg' => 'La demande de transfert a bien été modifiée.'
             ]);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -285,7 +284,7 @@ class TransferRequestController extends AbstractController {
 
             return new JsonResponse($data);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -393,7 +392,7 @@ class TransferRequestController extends AbstractController {
             ]);
         }
 
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -444,7 +443,7 @@ class TransferRequestController extends AbstractController {
                 ]);
             }
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**

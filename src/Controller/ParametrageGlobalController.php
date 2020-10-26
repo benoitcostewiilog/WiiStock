@@ -35,7 +35,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 
 /**
@@ -439,7 +439,7 @@ class ParametrageGlobalController extends AbstractController
             $em->flush();
             return new JsonResponse(['typeDemande' => $data['typeDemande'], 'prefixe' => $data['prefixe']]);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -493,7 +493,7 @@ class ParametrageGlobalController extends AbstractController
 
             return new JsonResponse($prefix);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -534,7 +534,7 @@ class ParametrageGlobalController extends AbstractController
             $data['data'] = $rows;
             return new JsonResponse($data);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -564,7 +564,7 @@ class ParametrageGlobalController extends AbstractController
 
             return new JsonResponse($json);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -623,7 +623,7 @@ class ParametrageGlobalController extends AbstractController
                 'msg' => 'Le jour "' . $this->engDayToFr[$dayName] . '" a bien été modifié.'
             ]);
         }
-        throw new NotFoundHttpException('404');
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -663,7 +663,7 @@ class ParametrageGlobalController extends AbstractController
 
             return new JsonResponse($data);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -693,7 +693,7 @@ class ParametrageGlobalController extends AbstractController
             }
             return new JsonResponse(true);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -726,7 +726,7 @@ class ParametrageGlobalController extends AbstractController
 
             return new JsonResponse(true);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -783,7 +783,7 @@ class ParametrageGlobalController extends AbstractController
 
             return new JsonResponse(true);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -811,7 +811,7 @@ class ParametrageGlobalController extends AbstractController
 
             return new JsonResponse(true);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -843,7 +843,7 @@ class ParametrageGlobalController extends AbstractController
 
             return new JsonResponse(true);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -860,7 +860,7 @@ class ParametrageGlobalController extends AbstractController
             $parametrageGlobal = $parametrageGlobalRepository->findOneByLabel(ParametrageGlobal::USES_UTF8);
             return new JsonResponse($parametrageGlobal ? $parametrageGlobal->getValue() : true);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
@@ -876,7 +876,7 @@ class ParametrageGlobalController extends AbstractController
             $parametrageGlobal128 = $parametrageGlobalRepository->findOneByLabel(ParametrageGlobal::BARCODE_TYPE_IS_128);
             return new JsonResponse($parametrageGlobal128 ? $parametrageGlobal128->getValue() : true);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
 
@@ -949,7 +949,7 @@ class ParametrageGlobalController extends AbstractController
 
             return new JsonResponse(true);
         }
-        throw new NotFoundHttpException("404");
+        throw new BadRequestHttpException();
     }
 
     /**
