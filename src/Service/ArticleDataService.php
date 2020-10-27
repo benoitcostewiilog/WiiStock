@@ -210,7 +210,7 @@ class ArticleDataService
                 $management = $refArticle->getStockManagement();
                 $articleToPreselect = null;
                 if ($management) {
-                    $articleToPreselect = Stream::from($articles)
+                    $articles = Stream::from($articles)
                         ->sort(function (Article $article1, Article $article2) use ($management) {
                             $datesToCompare = [];
                             if ($management === ReferenceArticle::STOCK_MANAGEMENT_FIFO) {
@@ -231,14 +231,12 @@ class ArticleDataService
                                 return 1;
                             }
                             return 0;
-                        })
-                        ->first()
-                        ->getId();
+                        })->toArray();
                 }
                 $data = [
                     'selection' => $this->templating->render('demande/newRefArticleByQuantiteArticleContent.html.twig', [
                         'articles' => $articles,
-                        'articleToPreselect' => $articleToPreselect ?? null,
+                        'preselect' => isset($management),
                         'maximum' => $availableQuantity,
                     ])
                 ];

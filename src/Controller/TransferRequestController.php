@@ -46,19 +46,15 @@ class TransferRequestController extends AbstractController {
 
     /**
      * @Route("/liste", name="transfer_request_index", options={"expose"=true}, methods={"GET", "POST"})
+     * @param EntityManagerInterface $entityManager
+     * @return Response
      */
-    public function index(EntityManagerInterface $em): Response {
+    public function index(EntityManagerInterface $entityManager): Response {
         if(!$this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_TRANSFER_REQ)) {
             return $this->redirectToRoute('access_denied');
         }
 
-        $statusRepository = $em->getRepository(Statut::class);
-
-        $transfer = new TransferRequest();
-
-        /** @var Utilisateur $currentUser */
-        $currentUser = $this->getUser();
-        $transfer->setRequester($currentUser);
+        $statusRepository = $entityManager->getRepository(Statut::class);
 
         return $this->render('transfer/request/index.html.twig', [
             'statuts' => $statusRepository->findByCategorieName(CategorieStatut::TRANSFER_REQUEST),
@@ -324,7 +320,10 @@ class TransferRequestController extends AbstractController {
                 return $this->json([
                     "success" => true,
                     "html" => $this->renderView("transfer/request/article/select_article_form.html.twig", [
-                        "articles" => $articles
+                        "articles" => $articles,
+                        'articleAlreadyInRequest' => $transfer->getArticles()->map(function (Article $article) {
+                            return $article->getId();
+                        })
                     ])
                 ]);
             } else {

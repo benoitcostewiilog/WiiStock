@@ -491,26 +491,28 @@ class TrackingMovementService
             "operator" => ['title' => 'Opérateur', 'name' => 'operator'],
         ];
 
-        foreach($freeFields as $freeField) {
-            $columns[$freeField["id"]] = [
-                "title" => $freeField["label"],
-                "name" => (string)$freeField["id"],
-            ];
-        }
-
-        $columns = array_map(function (array $column) use ($columnsVisible) {
-            return [
-                "title" => $column["title"],
-                "alwaysVisible" => $column["alwaysVisible"] ?? false,
-                "orderable" => $column["orderable"] ?? true,
-                "data" => $column["name"],
-                "name" => $column["name"],
-                "translated" => $column["translated"] ?? false,
-                "class" => $column["class"] ?? (in_array($column["name"], $columnsVisible) ? "display" : "hide")
-            ];
-        }, $columns);
-
-        return $columns;
+        return array_merge(
+            array_map(function (array $column) use ($columnsVisible) {
+                return [
+                    'title' => $column['title'],
+                    'alwaysVisible' => $column['alwaysVisible'] ?? false,
+                    'orderable' => $column['orderable'] ?? true,
+                    'data' => $column['name'],
+                    'name' => $column['name'],
+                    'translated' => $column['translated'] ?? false,
+                    'class' => $column['class'] ?? (in_array($column['name'], $columnsVisible) ? 'display' : 'hide')
+                ];
+            }, $columns),
+            array_map(function (array $freeField) use ($columnsVisible) {
+                return [
+                    'title' => ucfirst(mb_strtolower($freeField['label'])),
+                    'data' => $freeField['label'],
+                    'orderable' => false,
+                    'name' => $freeField['label'],
+                    'class' => (in_array($freeField['label'], $columnsVisible) ? 'display' : 'hide'),
+                ];
+            }, $freeFields)
+        );
     }
 
 }
