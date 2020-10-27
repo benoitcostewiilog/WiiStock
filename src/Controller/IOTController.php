@@ -21,7 +21,7 @@ class IOTController extends AbstractFOSRestController implements ClassResourceIn
     private const TREAT_MESSAGE = 1;
 
     /**
-     * @Rest\Post("/messages")
+     * @Rest\Post("/messages", name="iot_messages")
      * @Rest\View()
      * @param IOTService $IOTService
      * @param Request $request
