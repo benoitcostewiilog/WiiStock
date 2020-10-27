@@ -350,6 +350,7 @@ class LivraisonController extends AbstractController
                 'date de livraison',
                 'opérateur',
                 'type',
+                'commentaire',
                 'référence',
                 'libellé',
                 'emplacement',
@@ -382,6 +383,7 @@ class LivraisonController extends AbstractController
                 $livraison->getDateFin() ? $livraison->getDateFin()->format('d/m/Y H:i') : '',
                 $livraison->getUtilisateur() ? $livraison->getUtilisateur()->getUsername() : '',
                 $demande ? $demande->getType() ? $demande->getType()->getLabel() : '' : '',
+                $demande->getCommentaire() ? strip_tags($demande->getCommentaire()) : ''
             ];
 
             foreach ($preparation->getLigneArticlePreparations() as $ligneArticle) {
