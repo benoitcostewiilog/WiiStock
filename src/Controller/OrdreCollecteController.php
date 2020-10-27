@@ -429,7 +429,8 @@ class OrdreCollecteController extends AbstractController
             $collectes = $ordreCollecteRepository->findByDates($dateTimeMin, $dateTimeMax);
 
             $headers = [
-                'numéro',
+                'numéro ordre',
+                'numéro demande',
                 'statut',
                 'date création',
                 'opérateur',
@@ -462,6 +463,7 @@ class OrdreCollecteController extends AbstractController
         $dataCollecte =
             [
                 $ordreCollecte->getNumero() ?? '',
+                $collecte->getNumero() ?? '',
                 $ordreCollecte->getStatut() ? $ordreCollecte->getStatut()->getNom() : '',
                 $ordreCollecte->getDate() ? $ordreCollecte->getDate()->format('d/m/Y') : '',
                 $ordreCollecte->getUtilisateur() ? $ordreCollecte->getUtilisateur()->getUsername() : '',
