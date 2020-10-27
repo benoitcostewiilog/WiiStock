@@ -122,8 +122,8 @@ function initTableRefArticle() {
             columns: columns.map(function (column) {
                 return {
                     ...column,
-                    class: column.title === 'actions' ? 'noVis' : undefined,
-                    title: column.title === 'actions' ? '' : column.title
+                    class: column.title === 'Actions' ? 'noVis' : undefined,
+                    title: column.title === 'Actions' ? '' : column.title
                 }
             }),
             drawConfig: {
