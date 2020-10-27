@@ -29,6 +29,8 @@ class IOTController extends AbstractFOSRestController implements ClassResourceIn
      */
     public function postMessage(IOTService $IOTService,
                                 Request $request): View {
+        dump($request->headers->get('IOT_AUTH_TOKEN'));
+        dump($request->request->get('message'));
         $messageType = self::TREAT_MESSAGE; // TODO get messageType from $request ?
         switch ($messageType) {
             case self::TREAT_MESSAGE:
