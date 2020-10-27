@@ -6,6 +6,7 @@ use App\Service\IOTService;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Routing\ClassResourceInterface;
 use FOS\RestBundle\View\View;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use FOS\RestBundle\Controller\Annotations as Rest;
@@ -24,12 +25,12 @@ class IOTController extends AbstractFOSRestController implements ClassResourceIn
      * @Rest\View()
      * @param IOTService $IOTService
      * @param Request $request
-     * @return View
+     * @return Response
      */
     public function postMessage(IOTService $IOTService,
-                                Request $request): View {
-        dump($request->headers->get('IOT_AUTH_TOKEN'));
-        dump($request->request->get('message'));
+                                Request $request): Response {
+        dump($request->headers->all());
+        dump($request->request->all());
         $messageType = self::TREAT_MESSAGE; // TODO get messageType from $request ?
         switch ($messageType) {
             case self::TREAT_MESSAGE:
@@ -44,7 +45,7 @@ class IOTController extends AbstractFOSRestController implements ClassResourceIn
                 break;
         }
 
-        return View::create(
+        return $this->json(
             $data ?? ['success' => true],
             $statusCode ?? Response::HTTP_OK
         );
