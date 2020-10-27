@@ -14,14 +14,13 @@ use FOS\RestBundle\Controller\Annotations as Rest;
 /**
  * Class IOTController
  * @package App\Controller
- * @Rest\Prefix("/iot")
  */
 class IOTController extends AbstractFOSRestController implements ClassResourceInterface
 {
     private const TREAT_MESSAGE = 1;
 
     /**
-     * @Rest\Post("/messages", name="iot_messages")
+     * @Rest\Post("/iot/messages")
      * @Rest\View()
      * @param IOTService $IOTService
      * @param Request $request
