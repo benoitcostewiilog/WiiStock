@@ -106,7 +106,7 @@ class MessageService
             case IOTController::INEO_SENS_ACS_TEMP:
                 if (isset($config['payload'])) {
                     $frame = $config['payload'][0]['data'];
-                    return $frame['jcd_temperature'] . '°C';
+                    return $frame['jcd_temperature'] . ' °C';
                 }
         }
         return 'CONFIGURATION';
