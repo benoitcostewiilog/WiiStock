@@ -2,8 +2,6 @@
 
 namespace App\Repository\IOT;
 
-use App\Entity\Dashboard;
-use App\Entity\Import;
 use App\Entity\IOT\Message;
 use App\Helper\QueryCounter;
 use Doctrine\ORM\EntityRepository;

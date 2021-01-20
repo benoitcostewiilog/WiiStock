@@ -6,7 +6,6 @@ namespace App\Service;
 
 use App\Controller\IOTController;
 use App\Entity\IOT\Message;
-use Doctrine\ORM\EntityManagerInterface;
 use Twig\Environment as Twig_Environment;
 use Twig\Error\LoaderError;
 use Twig\Error\RuntimeError;

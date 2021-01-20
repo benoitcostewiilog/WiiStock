@@ -3,14 +3,10 @@
 namespace App\Controller;
 
 use App\Entity\IOT\Message;
-use App\Repository\IOT\MessageRepository;
 use App\Service\IOTService;
 use Doctrine\ORM\EntityManagerInterface;
-use DoctrineExtensions\Query\Mysql\Date;
 use Exception;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
-use FOS\RestBundle\Routing\ClassResourceInterface;
-use FOS\RestBundle\View\View;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;

@@ -3,46 +3,7 @@
 namespace App\Service;
 
 use App\Controller\IOTController;
-use App\Entity\Article;
-use App\Entity\ArticleFournisseur;
-use App\Entity\CategorieCL;
-use App\Entity\CategorieStatut;
-use App\Entity\CategoryType;
-use App\Entity\FreeField;
-use App\Entity\Emplacement;
-use App\Entity\FiltreSup;
-use App\Entity\Fournisseur;
-use App\Entity\Import;
-use App\Entity\InventoryCategory;
-use App\Entity\IOT\Message;
-use App\Entity\MouvementStock;
-use App\Entity\ParametrageGlobal;
-use App\Entity\ReceptionReferenceArticle;
-use App\Entity\Attachment;
-use App\Entity\ReferenceArticle;
-use App\Entity\Statut;
-use App\Entity\Type;
-use App\Entity\Utilisateur;
-use App\Exceptions\ImportException;
-use App\Helper\Stream;
-use DateTimeZone;
-use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\ORM\EntityManager;
-use DateTime;
-use Doctrine\ORM\NonUniqueResultException;
-use Doctrine\ORM\OptimisticLockException;
-use Doctrine\ORM\ORMException;
-use Doctrine\ORM\TransactionRequiredException;
-use Exception;
-use Psr\Log\LoggerInterface;
-use Symfony\Component\Routing\RouterInterface;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Contracts\Translation\TranslatorInterface;
-use Throwable;
-use Twig\Environment as Twig_Environment;
-use Twig\Error\LoaderError;
-use Twig\Error\RuntimeError;
-use Twig\Error\SyntaxError;
 
 
 class MessageService
