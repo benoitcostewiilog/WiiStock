@@ -71,7 +71,9 @@ class MessageService
 
         $rows = [];
         foreach ($queryResult['data'] as $message) {
-            $rows[] = $this->dataRowMessage($message);
+            if (!empty($message)) {
+                $rows[] = $this->dataRowMessage($message);
+            }
         }
 
         return [
@@ -92,12 +94,12 @@ class MessageService
         $messageMainData = $this->getMainDataFromMessage($message);
         $messageMainType = $this->getEventTypeFromMessage($message);
 
-        return [
+        return $messageMainData ? [
             'date' => $messageDate,
             'device' => $messageDevice,
             'mainData' => $messageMainData,
             'type' => $messageMainType,
-        ];
+        ] : [];
     }
 
     private function getMainDataFromMessage(Message $message) {
