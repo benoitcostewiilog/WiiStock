@@ -104,8 +104,10 @@ class MessageService
         $config = $message->getConfig();
         switch ($config['profile']) {
             case IOTController::INEO_SENS_ACS_TEMP:
-                $frame = $config['payload'][0]['data'];
-                return $frame['jcd_temperature'] . 'C°';
+                if (isset($config['payload'])) {
+                    $frame = $config['payload'][0]['data'];
+                    return $frame['jcd_temperature'] . 'C°';
+                }
         }
         return '';
     }
@@ -114,8 +116,10 @@ class MessageService
         $config = $message->getConfig();
         switch ($config['profile']) {
             case IOTController::INEO_SENS_ACS_TEMP:
-                $frame = $config['payload'][0]['data'];
-                return $frame['jcd_msg_type'];
+                if (isset($config['payload'])) {
+                    $frame = $config['payload'][0]['data'];
+                    return $frame['jcd_msg_type'];
+                }
         }
         return '';
     }
