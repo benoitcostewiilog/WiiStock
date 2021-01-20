@@ -71,10 +71,7 @@ class MessageService
 
         $rows = [];
         foreach ($queryResult['data'] as $message) {
-            $data = $this->dataRowMessage($message);
-            if (!empty($data)) {
-                $rows[] = $data;
-            }
+            $rows[] = $this->dataRowMessage($message);
         }
 
         return [
@@ -95,12 +92,12 @@ class MessageService
         $messageMainData = $this->getMainDataFromMessage($message);
         $messageMainType = $this->getEventTypeFromMessage($message);
 
-        return $messageMainData ? [
+        return [
             'date' => $messageDate,
             'device' => $messageDevice,
             'mainData' => $messageMainData,
             'type' => $messageMainType,
-        ] : [];
+        ];
     }
 
     private function getMainDataFromMessage(Message $message) {
@@ -112,7 +109,7 @@ class MessageService
                     return $frame['jcd_temperature'] . 'C°';
                 }
         }
-        return '';
+        return 'CONFIGURATION';
     }
 
     private function getEventTypeFromMessage(Message $message) {
@@ -124,6 +121,6 @@ class MessageService
                     return $frame['jcd_msg_type'];
                 }
         }
-        return '';
+        return 'CONFIGURATION';
     }
 }
