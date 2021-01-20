@@ -44,7 +44,7 @@ class IOTController extends AbstractFOSRestController
         if ($request->headers->get('x-api-key') === self::API_KEY) {
             $message = $request->request->get('message');
             if (isset(self::PROFILE_TO_ALERT[$message['profile']])) {
-                $messageDate = new \DateTime($message['timestamp'], new \DateTimeZone(\DateTimeZone::UTC));
+                $messageDate = new \DateTime($message['timestamp'], new \DateTimeZone("UTC"));
                 $messageDate->setTimezone(new \DateTimeZone('Europe/Paris'));
                 $received = new Message();
                 $received
