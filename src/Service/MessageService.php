@@ -71,8 +71,9 @@ class MessageService
 
         $rows = [];
         foreach ($queryResult['data'] as $message) {
-            if (!empty($message)) {
-                $rows[] = $this->dataRowMessage($message);
+            $data = $this->dataRowMessage($message);
+            if (!empty($data)) {
+                $rows[] = $data;
             }
         }
 
