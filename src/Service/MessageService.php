@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Controller\IOTController;
+use App\Entity\IOT\Message;
 use Doctrine\ORM\EntityManagerInterface;
 
 
