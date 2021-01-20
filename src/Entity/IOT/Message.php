@@ -26,7 +26,7 @@ class Message
     private $config = [];
 
     /**
-     * @ORM\Column(type="integer")
+     * @ORM\Column(type="bigint")
      */
     private $device;
 
