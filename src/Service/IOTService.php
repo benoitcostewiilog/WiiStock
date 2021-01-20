@@ -58,10 +58,7 @@ class IOTService {
      * @throws \Exception
      */
     private function treatTemperatureMessage(Message $message, EntityManagerInterface $entityManager) {
-        $payload = $message->getConfig()['payload'][0];
-        $frame = $payload['data'];
-        $timeStamp = new \DateTime($payload['timestamp'], new \DateTimeZone(\DateTimeZone::UTC));
-        $timeStamp->setTimezone(new \DateTimeZone('Europe/Paris'));
+        $frame = $message->getConfig()['payload'][0]['data'];
         if ($frame['jcd_msg_type'] === self::TEMP_EVENT) {
             $this->mailerService->sendMail(
                 'FOLLOW GT // Alerte de température atteint',
@@ -69,7 +66,7 @@ class IOTService {
                     'device' => $message->getDevice(),
                     'temperatureReached' => $frame['jcd_temperature'],
                     'temperatureConfigured' => self::TEMP_EVENT_TRESHOLD,
-                    'alertDate' => $timeStamp->format('d/m/Y H:i:s'),
+                    'alertDate' => $message->getDate()->format('d/m/Y H:i:s'),
                     'batteryLevel' => $frame['jcd_battery_level'],
                 ]),
                 $entityManager

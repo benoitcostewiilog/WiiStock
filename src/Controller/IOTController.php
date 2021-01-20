@@ -6,6 +6,7 @@ use App\Entity\IOT\Message;
 use App\Repository\IOT\MessageRepository;
 use App\Service\IOTService;
 use Doctrine\ORM\EntityManagerInterface;
+use DoctrineExtensions\Query\Mysql\Date;
 use Exception;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Routing\ClassResourceInterface;
@@ -43,7 +44,8 @@ class IOTController extends AbstractFOSRestController
         if ($request->headers->get('x-api-key') === self::API_KEY) {
             $message = $request->request->get('message');
             if (isset(self::PROFILE_TO_ALERT[$message['profile']])) {
-                $messageDate = new \DateTime($message['timestamp']);
+                $messageDate = new \DateTime($message['timestamp'], new \DateTimeZone(\DateTimeZone::UTC));
+                $messageDate->setTimezone(new \DateTimeZone('Europe/Paris'));
                 $received = new Message();
                 $received
                     ->setConfig($message)
