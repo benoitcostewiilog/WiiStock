@@ -57,7 +57,7 @@ class IOTService {
         $frame = $message->getConfig()['payload'][0]['data'];
         if ($frame['jcd_msg_type'] === self::TEMP_EVENT) {
             $this->mailerService->sendMail(
-                'FOLLOW GT // Alerte de température atteint',
+                'FOLLOW GT // Alerte de température',
                 $this->templateService->render('mails/contents/mailTemperatureTreshold.html.twig', [
                     'device' => $message->getDevice(),
                     'temperatureReached' => $frame['jcd_temperature'],
