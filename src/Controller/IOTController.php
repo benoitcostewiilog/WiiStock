@@ -51,7 +51,7 @@ class IOTController extends AbstractFOSRestController
                     ->setDevice($message['device_id'] ?? -1);
                 $entityManager->persist($received);
                 $entityManager->flush();
-                $IOTService->treatMessage($message, $entityManager);
+                $IOTService->treatMessage($received, $entityManager);
             }
             return new JsonResponse('OK');
         } else {
