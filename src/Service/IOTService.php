@@ -35,29 +35,26 @@ class IOTService {
 
     /**
      * @param Message $message
-     * @param EntityManagerInterface $entityManager
      * @throws LoaderError
      * @throws RuntimeError
      * @throws SyntaxError
      */
-    public function treatMessage(Message $message, EntityManagerInterface $entityManager): void {
+    public function treatMessage(Message $message): void {
         $config = $message->getConfig();
         switch ($config['profile']) {
             case IOTController::INEO_SENS_ACS_TEMP:
-                $this->treatTemperatureMessage($message, $entityManager);
+                $this->treatTemperatureMessage($message);
                 break;
         }
     }
 
     /**
      * @param Message $message
-     * @param EntityManagerInterface $entityManager
      * @throws LoaderError
      * @throws RuntimeError
      * @throws SyntaxError
-     * @throws \Exception
      */
-    private function treatTemperatureMessage(Message $message, EntityManagerInterface $entityManager) {
+    private function treatTemperatureMessage(Message $message) {
         $frame = $message->getConfig()['payload'][0]['data'];
         if ($frame['jcd_msg_type'] === self::TEMP_EVENT) {
             $this->mailerService->sendMail(
@@ -69,7 +66,7 @@ class IOTService {
                     'alertDate' => $message->getDate()->format('d/m/Y H:i:s'),
                     'batteryLevel' => $frame['jcd_battery_level'],
                 ]),
-                $entityManager
+                'test@wiilog.fr'
             );
         }
     }
