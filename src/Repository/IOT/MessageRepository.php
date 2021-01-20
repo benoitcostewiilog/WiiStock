@@ -3,7 +3,9 @@
 namespace App\Repository\IOT;
 
 use App\Entity\Dashboard;
+use App\Entity\Import;
 use App\Entity\IOT\Message;
+use App\Helper\QueryCounter;
 use Doctrine\ORM\EntityRepository;
 
 /**
@@ -14,4 +16,24 @@ use Doctrine\ORM\EntityRepository;
  */
 class MessageRepository extends EntityRepository
 {
+    public function findByParams($params)
+    {
+        $qb = $this->createQueryBuilder('message')
+            ->orderBy('message.date', 'DESC');
+
+        $countTotal = QueryCounter::count($qb, 'message');
+
+        if ($params) {
+            if (!empty($params->get('start'))) $qb->setFirstResult($params->get('start'));
+            if (!empty($params->get('length'))) $qb->setMaxResults($params->get('length'));
+        }
+
+        $query = $qb->getQuery();
+
+        return [
+            'data' => $query ? $query->getResult() : null,
+            'count' => $countTotal,
+            'total' => $countTotal
+        ];
+    }
 }

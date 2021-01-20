@@ -90,7 +90,7 @@ class Message
     /**
      * @return mixed
      */
-    public function getDate()
+    public function getDate(): \DateTime
     {
         return $this->date;
     }

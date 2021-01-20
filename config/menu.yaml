@@ -237,6 +237,8 @@ parameters:
                     rights:
                         menu: App\Entity\Menu::PARAM
                         action: App\Entity\Action::DISPLAY_IMPORT
+                -   label: 'Messages IOT'
+                    path: 'messages_index'
                 -   label: 'Documentation'
                     url: 'https://wiilog.fr/doc/'
                     isExtern: 'true'
