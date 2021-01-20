@@ -22,7 +22,7 @@ class IOTController extends AbstractFOSRestController
     const API_KEY = "VHaP4XuNxxZtxUZCK4TtWQwmLpbxc9eejrkPDsNe8bJrCWEwmTMZSqP5yTf5LLFB";
 
     /**
-     * @Rest\Post("/iot", condition="request.isXmlHttpRequest()")
+     * @Rest\Post("/iot")
      * @Rest\View()
      * @param Request $request
      * @return Response
