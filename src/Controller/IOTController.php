@@ -33,14 +33,17 @@ class IOTController extends AbstractFOSRestController
      * @param Request $request
      * @param EntityManagerInterface $entityManager
      * @return Response
+     * @throws \Exception
      */
     public function postApiKey(Request $request, EntityManagerInterface $entityManager) {
         if ($request->headers->get('x-api-key') === self::API_KEY) {
             $message = $request->request->get('message');
             if (isset(self::PROFILE_TO_ALERT[$message['profile']])) {
+                $messageDate = new \DateTime($message['timestamp']);
                 $received = new Message();
                 $received
                     ->setConfig($message)
+                    ->setDate($messageDate)
                     ->setDevice($message['device_id'] ?? -1);
                 $entityManager->persist($received);
                 $entityManager->flush();

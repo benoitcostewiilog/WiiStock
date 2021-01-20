@@ -31,6 +31,11 @@ class Message
     private $device;
 
     /**
+     * @ORM\Column(type="datetime")
+     */
+    private $date;
+
+    /**
      * @return mixed
      */
     public function getId()
@@ -81,6 +86,26 @@ class Message
         $this->device = $device;
         return $this;
     }
+
+    /**
+     * @return mixed
+     */
+    public function getDate()
+    {
+        return $this->date;
+    }
+
+    /**
+     * @param mixed $date
+     * @return Message
+     */
+    public function setDate($date): Message
+    {
+        $this->date = $date;
+        return $this;
+    }
+
+
 
 
 
