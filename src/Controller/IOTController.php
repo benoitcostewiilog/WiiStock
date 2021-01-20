@@ -6,6 +6,7 @@ use App\Entity\IOT\Message;
 use App\Repository\IOT\MessageRepository;
 use App\Service\IOTService;
 use Doctrine\ORM\EntityManagerInterface;
+use Exception;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Routing\ClassResourceInterface;
 use FOS\RestBundle\View\View;
@@ -22,9 +23,11 @@ use FOS\RestBundle\Controller\Annotations as Rest;
 class IOTController extends AbstractFOSRestController
 {
 
+    CONST INEO_SENS_ACS_TEMP = 'ineo-sens-acs';
+
     const API_KEY = "VHaP4XuNxxZtxUZCK4TtWQwmLpbxc9eejrkPDsNe8bJrCWEwmTMZSqP5yTf5LLFB";
     const PROFILE_TO_ALERT = [
-        'ineo-sens-acs' => 'Température'
+        self::INEO_SENS_ACS_TEMP => 'Température'
     ];
 
     /**
@@ -32,10 +35,11 @@ class IOTController extends AbstractFOSRestController
      * @Rest\View()
      * @param Request $request
      * @param EntityManagerInterface $entityManager
+     * @param IOTService $IOTService
      * @return Response
-     * @throws \Exception
+     * @throws Exception
      */
-    public function postApiKey(Request $request, EntityManagerInterface $entityManager) {
+    public function postApiKey(Request $request, EntityManagerInterface $entityManager, IOTService $IOTService) {
         if ($request->headers->get('x-api-key') === self::API_KEY) {
             $message = $request->request->get('message');
             if (isset(self::PROFILE_TO_ALERT[$message['profile']])) {
@@ -47,6 +51,7 @@ class IOTController extends AbstractFOSRestController
                     ->setDevice($message['device_id'] ?? -1);
                 $entityManager->persist($received);
                 $entityManager->flush();
+                $IOTService->treatMessage($message, $entityManager);
             }
             return new JsonResponse('OK');
         } else {

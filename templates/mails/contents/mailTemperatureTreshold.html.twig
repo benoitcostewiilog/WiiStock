@@ -1,0 +1,11 @@
+{% extends 'mails/template.html.twig' %}
+
+{% block content %}
+    <p>Bonjour,</p>
+    <p>Alerte de température sur le capteur numéro {{ device }}</p>
+    <div>Température atteinte : {{ temperatureReached }}</div>
+    <div>Température paramétrée : {{ temperatureConfigured }}</div>
+    <div>Date et heure de l'alerte : {{ alertDate }}</div>
+    <div>Niveau de batterie du capteur : {{ batteryLevel }}</div>
+    <br>
+{% endblock %}
