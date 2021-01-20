@@ -6,6 +6,7 @@ use App\Service\IOTService;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Routing\ClassResourceInterface;
 use FOS\RestBundle\View\View;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use FOS\RestBundle\Controller\Annotations as Rest;
@@ -14,38 +15,26 @@ use FOS\RestBundle\Controller\Annotations as Rest;
 /**
  * Class IOTController
  * @package App\Controller
- * @Rest\Prefix("/iot")
  */
-class IOTController extends AbstractFOSRestController implements ClassResourceInterface
+class IOTController extends AbstractFOSRestController
 {
-    private const TREAT_MESSAGE = 1;
+
+    const API_KEY = "VHaP4XuNxxZtxUZCK4TtWQwmLpbxc9eejrkPDsNe8bJrCWEwmTMZSqP5yTf5LLFB";
 
     /**
-     * @Rest\Post("/messages")
+     * @Rest\Post("/iot", condition="request.isXmlHttpRequest()")
      * @Rest\View()
-     * @param IOTService $IOTService
      * @param Request $request
-     * @return View
+     * @return Response
      */
-    public function postMessage(IOTService $IOTService,
-                                Request $request): View {
-        $messageType = self::TREAT_MESSAGE; // TODO get messageType from $request ?
-        switch ($messageType) {
-            case self::TREAT_MESSAGE:
-                $data = $IOTService->treatMessage();
-                break;
-            default:
-                $data = [
-                    'success' => false,
-                    'message' => 'Unsupported message type.'
-                ];
-                $statusCode = Response::HTTP_BAD_REQUEST;
-                break;
+    public function postApiKey(Request $request) {
+        if ($request->headers->get('x-api-key') === self::API_KEY) {
+            $message = $request->request->get('message');
+            dump($message);
+            return new JsonResponse('OK');
+        } else {
+            dump('Invalid api key provided.');
+            return new JsonResponse('NOK', 500);
         }
-
-        return View::create(
-            $data ?? ['success' => true],
-            $statusCode ?? Response::HTTP_OK
-        );
     }
 }
