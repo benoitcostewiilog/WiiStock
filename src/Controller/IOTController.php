@@ -20,11 +20,11 @@ use FOS\RestBundle\Controller\Annotations as Rest;
 class IOTController extends AbstractFOSRestController
 {
 
-    CONST INEO_SENS_ACS_TEMP = 'Capteur de température Ineo-Sens';
+    CONST INEO_SENS_ACS_TEMP = 'ineo-sens-acs';
 
     const API_KEY = "VHaP4XuNxxZtxUZCK4TtWQwmLpbxc9eejrkPDsNe8bJrCWEwmTMZSqP5yTf5LLFB";
     const PROFILE_TO_ALERT = [
-        self::INEO_SENS_ACS_TEMP => 'Température'
+        self::INEO_SENS_ACS_TEMP => 'Capture de température Ineo-Sens'
     ];
 
     /**
@@ -40,6 +40,7 @@ class IOTController extends AbstractFOSRestController
         if ($request->headers->get('x-api-key') === self::API_KEY) {
             $message = $request->request->get('message');
             if (isset(self::PROFILE_TO_ALERT[$message['profile']])) {
+                $message['profileLabel'] = self::PROFILE_TO_ALERT[$message['profile']];
                 $messageDate = new \DateTime($message['timestamp'], new \DateTimeZone("UTC"));
                 $messageDate->setTimezone(new \DateTimeZone('Europe/Paris'));
                 $received = new Message();
