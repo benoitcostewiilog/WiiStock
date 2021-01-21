@@ -4,6 +4,7 @@ $(function () {
         processing: true,
         serverSide: true,
         searching: false,
+        ordering: false,
         ajax: {
             "url": pathMessages,
             "type": "POST"
