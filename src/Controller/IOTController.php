@@ -21,10 +21,12 @@ class IOTController extends AbstractFOSRestController
 {
 
     CONST INEO_SENS_ACS_TEMP = 'ineo-sens-acs';
+    CONST INEO_SENS_GPS = 'trk-tracer-gps-new';
 
     const API_KEY = "VHaP4XuNxxZtxUZCK4TtWQwmLpbxc9eejrkPDsNe8bJrCWEwmTMZSqP5yTf5LLFB";
     const PROFILE_TO_ALERT = [
-        self::INEO_SENS_ACS_TEMP => 'Capteur de température Ineo-Sens'
+        self::INEO_SENS_ACS_TEMP => 'Capteur de température Ineo-Sens',
+        self::INEO_SENS_GPS => 'Capteur GPS Ineo-Sens'
     ];
 
     /**

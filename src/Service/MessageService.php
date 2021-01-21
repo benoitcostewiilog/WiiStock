@@ -72,6 +72,17 @@ class MessageService
                     $frame = $config['payload'][0]['data'];
                     return $frame['jcd_temperature'] . ' °C';
                 }
+                break;
+            case IOTController::INEO_SENS_GPS:
+                if (isset($config['payload'])) {
+                    $frame = $config['payload'][0]['data'];
+                    if (isset($frame['LATITUDE']) && isset($frame['LONGITUDE'])) {
+                        return 'LAT : ' . $frame['LATITUDE'] . ', LONG : ' . $frame['LONGITUDE'];
+                    } else {
+                        return 'Aucune coordonnée GPS acquise';
+                    }
+                }
+                break;
         }
         return 'CONFIGURATION';
     }
@@ -84,6 +95,13 @@ class MessageService
                     $frame = $config['payload'][0]['data'];
                     return $frame['jcd_msg_type'];
                 }
+                break;
+            case IOTController::INEO_SENS_GPS:
+                if (isset($config['payload'])) {
+                    $frame = $config['payload'][0]['data'];
+                    return $frame['NEW_EVT_TYPE'];
+                }
+                break;
         }
         return 'CONFIGURATION';
     }
