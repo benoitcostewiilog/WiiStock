@@ -37,7 +37,7 @@ class Message
     private $profileCode;
 
     /**
-     * @ORM\Column(type="int")
+     * @ORM\Column(type="integer")
      */
     private $batteryLevel;
 
