@@ -61,6 +61,7 @@ class MessageService
             'mainData' => $messageMainData,
             'type' => $messageMainType,
             'profile' => $messageProfile,
+            'battery' => $message->getBatteryLevel() < 0 ? 'Non remontée sur la trame' : $message->getBatteryLevel(),
         ];
     }
     private function extractMainDataFromConfig(array $config) {
