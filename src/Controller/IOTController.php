@@ -24,7 +24,7 @@ class IOTController extends AbstractFOSRestController
 
     const API_KEY = "VHaP4XuNxxZtxUZCK4TtWQwmLpbxc9eejrkPDsNe8bJrCWEwmTMZSqP5yTf5LLFB";
     const PROFILE_TO_ALERT = [
-        self::INEO_SENS_ACS_TEMP => 'Capture de température Ineo-Sens'
+        self::INEO_SENS_ACS_TEMP => 'Capteur de température Ineo-Sens'
     ];
 
     /**
