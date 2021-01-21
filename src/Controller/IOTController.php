@@ -20,7 +20,7 @@ use FOS\RestBundle\Controller\Annotations as Rest;
 class IOTController extends AbstractFOSRestController
 {
 
-    CONST INEO_SENS_ACS_TEMP = 'ineo-sens-acs';
+    CONST INEO_SENS_ACS_TEMP = 'Capteur de température Ineo-Sens';
 
     const API_KEY = "VHaP4XuNxxZtxUZCK4TtWQwmLpbxc9eejrkPDsNe8bJrCWEwmTMZSqP5yTf5LLFB";
     const PROFILE_TO_ALERT = [

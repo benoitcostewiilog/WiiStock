@@ -53,12 +53,14 @@ class MessageService
         $messageDevice = $message->getDevice();
         $messageMainData = $this->getMainDataFromMessage($message);
         $messageMainType = $this->getEventTypeFromMessage($message);
+        $messageProfile = $message->getConfig()['profile'];
 
         return [
             'date' => $messageDate,
             'device' => $messageDevice,
             'mainData' => $messageMainData,
             'type' => $messageMainType,
+            'profile' => $messageProfile,
         ];
     }
 

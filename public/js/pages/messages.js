@@ -14,8 +14,9 @@ $(function () {
             {"data": 'date', 'title': 'Date'},
             {"data": 'mainData', 'title': 'Donnée principale'},
             {"data": 'type', 'title': 'Type de message'},
+            {"data": 'profile', 'title': 'Type de capteur'},
         ],
         order: [[1, "desc"]],
     };
-    let tableMessages = initDataTable('tableMessages', tableMessageConfig);
+    initDataTable('tableMessages', tableMessageConfig);
 });
