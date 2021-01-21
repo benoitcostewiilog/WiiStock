@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use FOS\RestBundle\Controller\Annotations as Rest;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 
 /**
@@ -19,15 +20,6 @@ use FOS\RestBundle\Controller\Annotations as Rest;
  */
 class IOTController extends AbstractFOSRestController
 {
-
-    CONST INEO_SENS_ACS_TEMP = 'ineo-sens-acs';
-    CONST INEO_SENS_GPS = 'trk-tracer-gps-new';
-
-    const API_KEY = "VHaP4XuNxxZtxUZCK4TtWQwmLpbxc9eejrkPDsNe8bJrCWEwmTMZSqP5yTf5LLFB";
-    const PROFILE_TO_ALERT = [
-        self::INEO_SENS_ACS_TEMP => 'Capteur de température Ineo-Sens',
-        self::INEO_SENS_GPS => 'Capteur GPS Ineo-Sens'
-    ];
 
     /**
      * @Rest\Post("/iot")
@@ -38,26 +30,17 @@ class IOTController extends AbstractFOSRestController
      * @return Response
      * @throws Exception
      */
-    public function postApiKey(Request $request, EntityManagerInterface $entityManager, IOTService $IOTService) {
-        if ($request->headers->get('x-api-key') === self::API_KEY) {
+    public function postApiKey(Request $request,
+                               EntityManagerInterface $entityManager,
+                               IOTService $IOTService) {
+        if ($request->headers->get('x-api-key') === $_SERVER['APP_IOT_API_KEY']) {
             $message = $request->request->get('message');
-            if (isset(self::PROFILE_TO_ALERT[$message['profile']])) {
-                $message['profileLabel'] = self::PROFILE_TO_ALERT[$message['profile']];
-                $messageDate = new \DateTime($message['timestamp'], new \DateTimeZone("UTC"));
-                $messageDate->setTimezone(new \DateTimeZone('Europe/Paris'));
-                $received = new Message();
-                $received
-                    ->setConfig($message)
-                    ->setDate($messageDate)
-                    ->setDevice($message['device_id'] ?? -1);
-                $entityManager->persist($received);
-                $entityManager->flush();
-                $IOTService->treatMessage($received);
+            if (isset(IOTService::PROFILE_TO_ALERT[$message['profile']])) {
+                $IOTService->onMessageReceived($message, $entityManager);
             }
-            return new JsonResponse('OK');
+            return new Response();
         } else {
-            dump('Invalid api key provided.');
-            return new JsonResponse('NOK', 500);
+            throw new BadRequestHttpException();
         }
     }
 }

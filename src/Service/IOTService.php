@@ -6,6 +6,8 @@ namespace App\Service;
 
 use App\Controller\IOTController;
 use App\Entity\IOT\Message;
+use Doctrine\ORM\EntityManagerInterface;
+use Exception;
 use Twig\Environment as Twig_Environment;
 use Twig\Error\LoaderError;
 use Twig\Error\RuntimeError;
@@ -15,36 +17,50 @@ class IOTService {
 
     const TEMP_EVENT = "EVENT";
     const TEMP_EVENT_TRESHOLD = 25;
-    const TEMP_PRESENCE = "PRESENCE";
+    const INEO_SENS_ACS_TEMP = 'ineo-sens-acs';
+    const INEO_SENS_GPS = 'trk-tracer-gps-new';
+
+    const PROFILE_TO_ALERT = [
+        self::INEO_SENS_ACS_TEMP => 'Capteur de température Ineo-Sens',
+        self::INEO_SENS_GPS => 'Capteur GPS Ineo-Sens'
+    ];
 
     private $mailerService;
     private $templateService;
+    private $messageService;
 
     /**
      * IOTService constructor.
      * @param MailerService $mailerService
      * @param Twig_Environment $templateService
+     * @param MessageService $messageService
      */
-    public function __construct(MailerService $mailerService, Twig_Environment $templateService)
+    public function __construct(MailerService $mailerService, Twig_Environment $templateService, MessageService $messageService)
     {
         $this->mailerService = $mailerService;
         $this->templateService = $templateService;
+        $this->messageService = $messageService;
     }
 
 
     /**
-     * @param Message $message
+     * @param array $frame
+     * @param EntityManagerInterface $entityManager
      * @throws LoaderError
      * @throws RuntimeError
      * @throws SyntaxError
+     * @throws Exception
      */
-    public function treatMessage(Message $message): void {
+    public function onMessageReceived(array $frame, EntityManagerInterface $entityManager): void {
+        $message = $this->messageService->createMessageFromFrame($frame);
+        $entityManager->persist($message);
         $config = $message->getConfig();
         switch ($config['profile']) {
-            case IOTController::INEO_SENS_ACS_TEMP:
+            case self::INEO_SENS_ACS_TEMP:
                 $this->treatTemperatureMessage($message);
                 break;
         }
+        $entityManager->flush();
     }
 
     /**
@@ -60,10 +76,10 @@ class IOTService {
                 'FOLLOW GT // Alerte de température',
                 $this->templateService->render('mails/contents/mailTemperatureTreshold.html.twig', [
                     'device' => $message->getDevice(),
-                    'temperatureReached' => $frame['jcd_temperature'],
+                    'temperatureReached' => $message->getFormattedMainData(),
                     'temperatureConfigured' => self::TEMP_EVENT_TRESHOLD,
                     'alertDate' => $message->getDate()->format('d/m/Y H:i:s'),
-                    'batteryLevel' => $frame['jcd_battery_level'],
+                    'batteryLevel' => $message->getFormattedBatteryLevel(),
                 ]),
                 'test@wiilog.fr'
             );

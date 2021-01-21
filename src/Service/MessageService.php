@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Controller\IOTController;
 use App\Entity\IOT\Message;
 use Doctrine\ORM\EntityManagerInterface;
+use Exception;
 
 
 class MessageService
@@ -20,7 +21,6 @@ class MessageService
     {
         $this->em = $em;
     }
-
 
     /**
      * @param null $params
@@ -51,9 +51,9 @@ class MessageService
     {
         $messageDate = $message->getDate()->format('d/m/Y H:i:s');
         $messageDevice = $message->getDevice();
-        $messageMainData = $this->getMainDataFromMessage($message);
-        $messageMainType = $this->getEventTypeFromMessage($message);
-        $messageProfile = $message->getConfig()['profileLabel'];
+        $messageMainData = $message->getFormattedMainData();
+        $messageMainType = $message->getEventType();
+        $messageProfile = IOTService::PROFILE_TO_ALERT[$message->getProfileCode()];
 
         return [
             'date' => $messageDate,
@@ -63,46 +63,82 @@ class MessageService
             'profile' => $messageProfile,
         ];
     }
-
-    private function getMainDataFromMessage(Message $message) {
-        $config = $message->getConfig();
+    private function extractMainDataFromConfig(array $config) {
         switch ($config['profile']) {
-            case IOTController::INEO_SENS_ACS_TEMP:
+            case IOTService::INEO_SENS_ACS_TEMP:
                 if (isset($config['payload'])) {
                     $frame = $config['payload'][0]['data'];
-                    return $frame['jcd_temperature'] . ' °C';
+                    return $frame['jcd_temperature'];
                 }
                 break;
-            case IOTController::INEO_SENS_GPS:
+            case IOTService::INEO_SENS_GPS:
                 if (isset($config['payload'])) {
                     $frame = $config['payload'][0]['data'];
                     if (isset($frame['LATITUDE']) && isset($frame['LONGITUDE'])) {
-                        return 'LAT : ' . $frame['LATITUDE'] . ', LONG : ' . $frame['LONGITUDE'];
+                        return $frame['LATITUDE'] . ',' . $frame['LONGITUDE'];
                     } else {
-                        return 'Aucune coordonnée GPS acquise';
+                        return '-1,-1';
                     }
                 }
                 break;
         }
-        return 'CONFIGURATION';
+        return 'Donnée principale non trouvée';
     }
 
-    private function getEventTypeFromMessage(Message $message) {
-        $config = $message->getConfig();
+    private function extractEventTypeFromMessage(array $config) {
         switch ($config['profile']) {
-            case IOTController::INEO_SENS_ACS_TEMP:
+            case IOTService::INEO_SENS_ACS_TEMP:
                 if (isset($config['payload'])) {
                     $frame = $config['payload'][0]['data'];
                     return $frame['jcd_msg_type'];
                 }
                 break;
-            case IOTController::INEO_SENS_GPS:
+            case IOTService::INEO_SENS_GPS:
                 if (isset($config['payload'])) {
                     $frame = $config['payload'][0]['data'];
                     return $frame['NEW_EVT_TYPE'];
                 }
                 break;
         }
-        return 'CONFIGURATION';
+        return 'Évenement non trouvé';
+    }
+
+    private function extractBatteryLevelFromMessage(array $config) {
+        switch ($config['profile']) {
+            case IOTService::INEO_SENS_ACS_TEMP:
+                if (isset($config['payload'])) {
+                    $frame = $config['payload'][0]['data'];
+                    return $frame['jcd_battery_level'];
+                }
+                break;
+            case IOTService::INEO_SENS_GPS:
+                if (isset($config['payload'])) {
+                    $frame = $config['payload'][0]['data'];
+                    return $frame['NEW_BATT'] ?? -1;
+                }
+                break;
+        }
+        return 'Évenement non trouvé';
+    }
+
+    /**
+     * @param array $message
+     * @return Message
+     * @throws Exception
+     */
+    public function createMessageFromFrame(array $message): Message {
+        $message['profileLabel'] = IOTService::PROFILE_TO_ALERT[$message['profile']];
+        $messageDate = new \DateTime($message['timestamp'], new \DateTimeZone("UTC"));
+        $messageDate->setTimezone(new \DateTimeZone('Europe/Paris'));
+        $received = new Message();
+        $received
+            ->setConfig($message)
+            ->setDate($messageDate)
+            ->setProfileCode($message['profile'])
+            ->setMainData($this->extractMainDataFromConfig($message))
+            ->setEventType($this->extractEventTypeFromMessage($message))
+            ->setBatteryLevel($this->extractBatteryLevelFromMessage($message))
+            ->setDevice($message['device_id'] ?? -1);
+        return $received;
     }
 }

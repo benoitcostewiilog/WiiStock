@@ -3,6 +3,7 @@
 
 namespace App\Entity\IOT;
 
+use App\Service\IOTService;
 use Doctrine\ORM\Mapping as ORM;
 use App\Repository\IOT as IOTRepository;
 
@@ -29,6 +30,26 @@ class Message
      * @ORM\Column(type="bigint")
      */
     private $device;
+
+    /**
+     * @ORM\Column(type="string")
+     */
+    private $profileCode;
+
+    /**
+     * @ORM\Column(type="int")
+     */
+    private $batteryLevel;
+
+    /**
+     * @ORM\Column(type="string", nullable=true)
+     */
+    private $eventType;
+
+    /**
+     * @ORM\Column(type="string")
+     */
+    private $mainData;
 
     /**
      * @ORM\Column(type="datetime")
@@ -105,9 +126,95 @@ class Message
         return $this;
     }
 
+    /**
+     * @return mixed
+     */
+    public function getProfileCode()
+    {
+        return $this->profileCode;
+    }
 
+    /**
+     * @param mixed $profileCode
+     * @return Message
+     */
+    public function setProfileCode($profileCode): Message
+    {
+        $this->profileCode = $profileCode;
+        return $this;
+    }
 
+    /**
+     * @return mixed
+     */
+    public function getEventType()
+    {
+        return $this->eventType;
+    }
 
+    /**
+     * @param mixed $eventType
+     * @return Message
+     */
+    public function setEventType($eventType): self
+    {
+        $this->eventType = $eventType;
+        return $this;
+    }
+
+    /**
+     * @param $batteryLevel
+     * @return Message
+     */
+    public function setBatteryLevel($batteryLevel): self
+    {
+        $this->batteryLevel = $batteryLevel;
+        return $this;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getMainData()
+    {
+        return $this->mainData;
+    }
+
+    public function getBatteryLevel() {
+        return $this->batteryLevel;
+    }
+
+    public function getFormattedBatteryLevel() {
+        return $this->batteryLevel . '%';
+    }
+
+    public function getFormattedMainData() {
+        $config = $this->getConfig();
+        switch ($config['profile']) {
+            case IOTService::INEO_SENS_ACS_TEMP:
+                return $this->mainData . ' °C';
+            case IOTService::INEO_SENS_GPS:
+                $coordinates = explode(',', $this->mainData);
+                $lat = $coordinates[0];
+                $long = $coordinates[1];
+                if ($lat === "-1" || $long === "-1") {
+                    return 'Aucune acquisition GPS possible.';
+                } else {
+                    return 'LAT : ' . $lat . ', LONG : ' . $long;
+                }
+        }
+        return 'Donnée principale non trouvée';
+    }
+
+    /**
+     * @param mixed $mainData
+     * @return Message
+     */
+    public function setMainData($mainData): self
+    {
+        $this->mainData = $mainData;
+        return $this;
+    }
 
 
 }
