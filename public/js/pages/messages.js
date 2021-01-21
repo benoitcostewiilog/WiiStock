@@ -15,6 +15,7 @@ $(function () {
             {"data": 'mainData', 'title': 'Donnée principale'},
             {"data": 'type', 'title': 'Type de message'},
             {"data": 'profile', 'title': 'Type de capteur'},
+            {"data": 'battery', 'title': 'Niveau de batterie'},
         ],
         order: [[1, "desc"]],
     };
