@@ -97,7 +97,11 @@ class MessageService
             case IOTService::INEO_SENS_GPS:
                 if (isset($config['payload'])) {
                     $frame = $config['payload'][0]['data'];
-                    return $frame['NEW_EVT_TYPE'];
+                    if (isset($frame['NEW_EVT_TYPE'])) {
+                        return $frame['NEW_EVT_TYPE'];
+                    } else if ($frame['NEW_BATT']) {
+                        return 'BATTERY_INFO';
+                    }
                 }
                 break;
         }
