@@ -52,7 +52,7 @@ class IOTService {
      * @throws Exception
      */
     public function onMessageReceived(array $frame, EntityManagerInterface $entityManager): void {
-        if (isset(self::PROFILE_TO_ALERT[$message['profile']])) {
+        if (isset(self::PROFILE_TO_ALERT[$frame['profile']])) {
             $message = $this->messageService->createMessageFromFrame($frame, $entityManager);
             $entityManager->persist($message);
             $config = $message->getConfig();
