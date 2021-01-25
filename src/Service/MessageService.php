@@ -135,7 +135,7 @@ class MessageService
      * @return Message
      * @throws Exception
      */
-    public function createMessageFromFrame(array $message, EntityManagerInterface $entityManager): Message {
+    public function createAndPersistMessageFromFrame(array $message, EntityManagerInterface $entityManager): Message {
         $profileRepository = $entityManager->getRepository(Profile::class);
         $deviceRepository = $entityManager->getRepository(Device::class);
 
@@ -165,10 +165,13 @@ class MessageService
             $device
                 ->setCode($deviceCode)
                 ->setProfile($profile)
-                ->setBattery($this->extractBatteryLevelFromMessage($message));
+                ->setBattery(-1);
             $entityManager->persist($device);
-        } else if ($device->getBattery() < 0) {
-            $device->setBattery($this->extractBatteryLevelFromMessage($message));
+        }
+
+        $newBattery = $this->extractBatteryLevelFromMessage($message);
+        if ($newBattery > -1) {
+            $device->setBattery($newBattery);
         }
 
         $messageDate = new \DateTime($message['timestamp'], new \DateTimeZone("UTC"));
@@ -180,6 +183,8 @@ class MessageService
             ->setMainData($this->extractMainDataFromConfig($message))
             ->setEventType($this->extractEventTypeFromMessage($message))
             ->setDevice($device);
+
+        $entityManager->persist($received);
         return $received;
     }
 }

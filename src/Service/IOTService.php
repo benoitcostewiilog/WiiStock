@@ -53,8 +53,7 @@ class IOTService {
      */
     public function onMessageReceived(array $frame, EntityManagerInterface $entityManager): void {
         if (isset(self::PROFILE_TO_ALERT[$frame['profile']])) {
-            $message = $this->messageService->createMessageFromFrame($frame, $entityManager);
-            $entityManager->persist($message);
+            $message = $this->messageService->createAndPersistMessageFromFrame($frame, $entityManager);
             $config = $message->getConfig();
             switch ($config['profile']) {
                 case self::INEO_SENS_ACS_TEMP:

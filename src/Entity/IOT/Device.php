@@ -3,7 +3,7 @@
 namespace App\Entity\IOT;
 
 use App\Entity\IOT\Message as Message;
-use App\Repository\DeviceRepository;
+use App\Repository\IOT\DeviceRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -26,7 +26,7 @@ class Device
     private $code;
 
     /**
-     * @ORM\OneToMany(targetEntity=Message::class, mappedBy="deviceTemp")
+     * @ORM\OneToMany(targetEntity=Message::class, mappedBy="device")
      */
     private $messages;
 
