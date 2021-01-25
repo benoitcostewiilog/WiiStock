@@ -53,7 +53,7 @@ class IOTService {
      */
     public function onMessageReceived(array $frame, EntityManagerInterface $entityManager): void {
         if (isset(self::PROFILE_TO_ALERT[$message['profile']])) {
-            $message = $this->messageService->createMessageFromFrame($frame);
+            $message = $this->messageService->createMessageFromFrame($frame, $entityManager);
             $entityManager->persist($message);
             $config = $message->getConfig();
             switch ($config['profile']) {
@@ -73,15 +73,16 @@ class IOTService {
      */
     private function treatTemperatureMessage(Message $message) {
         $frame = $message->getConfig()['payload'][0]['data'];
+        $device = $message->getDevice();
         if ($frame['jcd_msg_type'] === self::TEMP_EVENT) {
             $this->mailerService->sendMail(
                 'FOLLOW GT // Alerte de température',
                 $this->templateService->render('mails/contents/mailTemperatureTreshold.html.twig', [
-                    'device' => $message->getDevice(),
+                    'device' => $device ? $device->getCode() : '',
                     'temperatureReached' => $message->getFormattedMainData(),
                     'temperatureConfigured' => self::TEMP_EVENT_TRESHOLD,
                     'alertDate' => $message->getDate()->format('d/m/Y H:i:s'),
-                    'batteryLevel' => $message->getFormattedBatteryLevel(),
+                    'batteryLevel' => $device ? $device->getFormattedBatteryLevel() : '',
                 ]),
                 'test@wiilog.fr'
             );

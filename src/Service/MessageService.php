@@ -3,7 +3,9 @@
 namespace App\Service;
 
 use App\Controller\IOTController;
+use App\Entity\IOT\Device;
 use App\Entity\IOT\Message;
+use App\Entity\IOT\Profile;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 
@@ -53,15 +55,16 @@ class MessageService
         $messageDevice = $message->getDevice();
         $messageMainData = $message->getFormattedMainData();
         $messageMainType = $message->getEventType();
-        $messageProfile = IOTService::PROFILE_TO_ALERT[$message->getProfileCode()];
+        $profile = $messageDevice ? $messageDevice->getProfile() : null;
+        $battery = $messageDevice ? $messageDevice->getFormattedBatteryLevel() : null;
 
         return [
             'date' => $messageDate,
-            'device' => $messageDevice,
+            'device' => $messageDevice ? $messageDevice->getCode() : '',
             'mainData' => $messageMainData,
             'type' => $messageMainType,
-            'profile' => $messageProfile,
-            'battery' => $message->getBatteryLevel() < 0 ? 'Non remontée sur la trame' : $message->getFormattedBatteryLevel(),
+            'profile' => $profile ? $profile->getLabel() : '',
+            'battery' => $battery,
         ];
     }
     private function extractMainDataFromConfig(array $config) {
@@ -128,22 +131,55 @@ class MessageService
 
     /**
      * @param array $message
+     * @param EntityManagerInterface $entityManager
      * @return Message
      * @throws Exception
      */
-    public function createMessageFromFrame(array $message): Message {
-        $message['profileLabel'] = IOTService::PROFILE_TO_ALERT[$message['profile']];
+    public function createMessageFromFrame(array $message, EntityManagerInterface $entityManager): Message {
+        $profileRepository = $entityManager->getRepository(Profile::class);
+        $deviceRepository = $entityManager->getRepository(Device::class);
+
+        $profileCode = $message['profile'];
+
+        $profile = $profileRepository->findOneBy([
+            'code' => $profileCode
+        ]);
+
+        if (!isset($profile)) {
+            $profileLabel = IOTService::PROFILE_TO_ALERT[$profileCode];
+            $profile = new Profile();
+            $profile
+                ->setCode($profileCode)
+                ->setLabel($profileLabel);
+            $entityManager->persist($profile);
+        }
+
+        $deviceCode = $message['device_id'];
+
+        $device = $deviceRepository->findOneBy([
+            'code' => $deviceCode
+        ]);
+
+        if (!isset($device)) {
+            $device = new Device();
+            $device
+                ->setCode($deviceCode)
+                ->setProfile($profile)
+                ->setBattery($this->extractBatteryLevelFromMessage($message));
+            $entityManager->persist($device);
+        } else if ($device->getBattery() < 0) {
+            $device->setBattery($this->extractBatteryLevelFromMessage($message));
+        }
+
         $messageDate = new \DateTime($message['timestamp'], new \DateTimeZone("UTC"));
         $messageDate->setTimezone(new \DateTimeZone('Europe/Paris'));
         $received = new Message();
         $received
             ->setConfig($message)
             ->setDate($messageDate)
-            ->setProfileCode($message['profile'])
             ->setMainData($this->extractMainDataFromConfig($message))
             ->setEventType($this->extractEventTypeFromMessage($message))
-            ->setBatteryLevel($this->extractBatteryLevelFromMessage($message))
-            ->setDevice($message['device_id'] ?? -1);
+            ->setDevice($device);
         return $received;
     }
 }

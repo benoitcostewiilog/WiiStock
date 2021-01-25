@@ -3,6 +3,7 @@
 
 namespace App\Entity\IOT;
 
+use App\Entity\IOT\Device as Device;
 use App\Service\IOTService;
 use Doctrine\ORM\Mapping as ORM;
 use App\Repository\IOT as IOTRepository;
@@ -20,26 +21,10 @@ class Message
      */
     private $id;
 
-
     /**
      * @ORM\Column(type="json")
      */
     private $config = [];
-
-    /**
-     * @ORM\Column(type="bigint")
-     */
-    private $device;
-
-    /**
-     * @ORM\Column(type="string")
-     */
-    private $profileCode;
-
-    /**
-     * @ORM\Column(type="integer")
-     */
-    private $batteryLevel;
 
     /**
      * @ORM\Column(type="string", nullable=true)
@@ -55,6 +40,12 @@ class Message
      * @ORM\Column(type="datetime")
      */
     private $date;
+
+    /**
+     * @ORM\ManyToOne(targetEntity=Device::class, inversedBy="messages")
+     * @ORM\JoinColumn(nullable=false)
+     */
+    private $device;
 
     /**
      * @return mixed
@@ -93,7 +84,7 @@ class Message
     /**
      * @return mixed
      */
-    public function getDevice()
+    public function getDevice(): Device
     {
         return $this->device;
     }
@@ -129,24 +120,6 @@ class Message
     /**
      * @return mixed
      */
-    public function getProfileCode()
-    {
-        return $this->profileCode;
-    }
-
-    /**
-     * @param mixed $profileCode
-     * @return Message
-     */
-    public function setProfileCode($profileCode): Message
-    {
-        $this->profileCode = $profileCode;
-        return $this;
-    }
-
-    /**
-     * @return mixed
-     */
     public function getEventType()
     {
         return $this->eventType;
@@ -163,29 +136,11 @@ class Message
     }
 
     /**
-     * @param $batteryLevel
-     * @return Message
-     */
-    public function setBatteryLevel($batteryLevel): self
-    {
-        $this->batteryLevel = $batteryLevel;
-        return $this;
-    }
-
-    /**
      * @return mixed
      */
     public function getMainData()
     {
         return $this->mainData;
-    }
-
-    public function getBatteryLevel() {
-        return $this->batteryLevel;
-    }
-
-    public function getFormattedBatteryLevel() {
-        return $this->batteryLevel . '%';
     }
 
     public function getFormattedMainData() {
