@@ -35,9 +35,7 @@ class IOTController extends AbstractFOSRestController
                                IOTService $IOTService) {
         if ($request->headers->get('x-api-key') === $_SERVER['APP_IOT_API_KEY']) {
             $message = $request->request->get('message');
-            if (isset(IOTService::PROFILE_TO_ALERT[$message['profile']])) {
-                $IOTService->onMessageReceived($message, $entityManager);
-            }
+            $IOTService->onMessageReceived($message, $entityManager);
             return new Response();
         } else {
             throw new BadRequestHttpException();

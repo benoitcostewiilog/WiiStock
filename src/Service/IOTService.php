@@ -52,15 +52,17 @@ class IOTService {
      * @throws Exception
      */
     public function onMessageReceived(array $frame, EntityManagerInterface $entityManager): void {
-        $message = $this->messageService->createMessageFromFrame($frame);
-        $entityManager->persist($message);
-        $config = $message->getConfig();
-        switch ($config['profile']) {
-            case self::INEO_SENS_ACS_TEMP:
-                $this->treatTemperatureMessage($message);
-                break;
+        if (isset(self::PROFILE_TO_ALERT[$message['profile']])) {
+            $message = $this->messageService->createMessageFromFrame($frame);
+            $entityManager->persist($message);
+            $config = $message->getConfig();
+            switch ($config['profile']) {
+                case self::INEO_SENS_ACS_TEMP:
+                    $this->treatTemperatureMessage($message);
+                    break;
+            }
+            $entityManager->flush();
         }
-        $entityManager->flush();
     }
 
     /**
