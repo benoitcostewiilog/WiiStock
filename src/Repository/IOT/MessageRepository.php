@@ -20,7 +20,7 @@ class MessageRepository extends EntityRepository
         $qb = $this->createQueryBuilder('message')
             ->orderBy('message.date', 'DESC');
 
-        $countTotal = QueryCounter::count($qb, 'message');
+        $countFiltered = $countTotal = QueryCounter::count($qb, 'message');
 
         if ($params) {
             if (!empty($params->get('device'))) {
@@ -30,13 +30,14 @@ class MessageRepository extends EntityRepository
             }
             if (!empty($params->get('start'))) $qb->setFirstResult($params->get('start'));
             if (!empty($params->get('length'))) $qb->setMaxResults($params->get('length'));
+            $countFiltered = QueryCounter::count($qb, "message");
         }
 
         $query = $qb->getQuery();
 
         return [
             'data' => $query ? $query->getResult() : null,
-            'count' => $countTotal,
+            'count' => $countFiltered,
             'total' => $countTotal
         ];
     }
