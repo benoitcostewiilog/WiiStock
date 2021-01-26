@@ -28,9 +28,9 @@ class MessageRepository extends EntityRepository
                     ->where('message.device = :device')
                     ->setParameter('device', $params->get('device'));
             }
+            $countFiltered = QueryCounter::count($qb, "message");
             if (!empty($params->get('start'))) $qb->setFirstResult($params->get('start'));
             if (!empty($params->get('length'))) $qb->setMaxResults($params->get('length'));
-            $countFiltered = QueryCounter::count($qb, "message");
         }
 
         $query = $qb->getQuery();
