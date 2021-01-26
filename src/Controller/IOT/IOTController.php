@@ -1,13 +1,11 @@
 <?php
 
-namespace App\Controller;
+namespace App\Controller\IOT;
 
-use App\Entity\IOT\Message;
-use App\Service\IOTService;
+use App\Service\IOT\IOTService;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use FOS\RestBundle\Controller\Annotations as Rest;

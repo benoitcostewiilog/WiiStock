@@ -1,11 +1,11 @@
 {% extends 'layout.html.twig' %}
 
-    {% block title %}Paramétrage | Messages IOT{% endblock %}
+    {% block title %}Paramétrage | Capteurs IOT{% endblock %}
 {% block page_content %}
     <div class="m-4 wii-page-card">
         <div class="row">
             <div class="col-12">
-                <table id="tableMessages" class="table w-100">
+                <table id="tableDevices" class="table w-100">
                 </table>
             </div>
         </div>
@@ -15,6 +15,6 @@
 
 {% block javascripts %}
     {{ parent() }}
-    <script src="{{ asset('js/pages/IOT/messages.js') }}?{{ app_last_cache_clear }}"></script>
+    <script src="{{ asset('js/pages/iot/devices.js') }}?{{ app_last_cache_clear }}"></script>
 {% endblock %}
 

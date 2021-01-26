@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Controller;
+namespace App\Controller\IOT;
 
-use App\Service\MessageService;
+use App\Service\IOT\MessageService;
 use App\Service\UserService;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,22 +15,22 @@ use Symfony\Component\Routing\Annotation\Route;
 /**
  * Class IOTController
  * @package App\Controller
- * @Route("/messages")
+ * @Route("/devices")
  */
-class MessageController extends AbstractFOSRestController
+class DeviceController extends AbstractFOSRestController
 {
     /**
-     * @Route("/", name="messages_index")
+     * @Route("/", name="devices_index")
      * @param UserService $userService
      * @return RedirectResponse|Response
      */
     public function index(UserService $userService)
     {
-        return $this->render('IOT/messages_index.html.twig');
+        return $this->render('IOT/devices_index.html.twig');
     }
 
     /**
-     * @Route("/api", name="messages_api", options={"expose"=true}, methods="POST", condition="request.isXmlHttpRequest()")
+     * @Route("/api", name="devices_api", options={"expose"=true}, methods="POST", condition="request.isXmlHttpRequest()")
      * @param Request $request
      * @param MessageService $messageService
      * @return Response

@@ -3,6 +3,7 @@
 namespace App\Repository\IOT;
 
 use App\Entity\IOT\Device;
+use App\Helper\QueryCounter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -18,33 +19,23 @@ class DeviceRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Device::class);
     }
-
-    // /**
-    //  * @return Device[] Returns an array of Device objects
-    //  */
-    /*
-    public function findByExampleField($value)
+    public function findByParams($params)
     {
-        return $this->createQueryBuilder('d')
-            ->andWhere('d.exampleField = :val')
-            ->setParameter('val', $value)
-            ->orderBy('d.id', 'ASC')
-            ->setMaxResults(10)
-            ->getQuery()
-            ->getResult()
-        ;
-    }
-    */
+        $qb = $this->createQueryBuilder('device');
 
-    /*
-    public function findOneBySomeField($value): ?Device
-    {
-        return $this->createQueryBuilder('d')
-            ->andWhere('d.exampleField = :val')
-            ->setParameter('val', $value)
-            ->getQuery()
-            ->getOneOrNullResult()
-        ;
+        $countTotal = QueryCounter::count($qb, 'device');
+
+        if ($params) {
+            if (!empty($params->get('start'))) $qb->setFirstResult($params->get('start'));
+            if (!empty($params->get('length'))) $qb->setMaxResults($params->get('length'));
+        }
+
+        $query = $qb->getQuery();
+
+        return [
+            'data' => $query ? $query->getResult() : null,
+            'count' => $countTotal,
+            'total' => $countTotal
+        ];
     }
-    */
 }

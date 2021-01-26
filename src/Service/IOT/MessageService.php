@@ -1,27 +1,32 @@
 <?php
 
-namespace App\Service;
+namespace App\Service\IOT;
 
-use App\Controller\IOTController;
 use App\Entity\IOT\Device;
 use App\Entity\IOT\Message;
 use App\Entity\IOT\Profile;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
+use Twig\Error\LoaderError;
+use Twig\Error\RuntimeError;
+use Twig\Error\SyntaxError;
 
 
 class MessageService
 {
 
     private $em;
+    private $IOTService;
 
     /**
      * MessageService constructor.
-     * @param $em
+     * @param EntityManagerInterface $em
+     * @param IOTService $IOTService
      */
-    public function __construct(EntityManagerInterface $em)
+    public function __construct(EntityManagerInterface $em, IOTService $IOTService)
     {
         $this->em = $em;
+        $this->IOTService = $IOTService;
     }
 
     /**
@@ -67,67 +72,6 @@ class MessageService
             'battery' => $battery,
         ];
     }
-    private function extractMainDataFromConfig(array $config) {
-        switch ($config['profile']) {
-            case IOTService::INEO_SENS_ACS_TEMP:
-                if (isset($config['payload'])) {
-                    $frame = $config['payload'][0]['data'];
-                    return $frame['jcd_temperature'];
-                }
-                break;
-            case IOTService::INEO_SENS_GPS:
-                if (isset($config['payload'])) {
-                    $frame = $config['payload'][0]['data'];
-                    if (isset($frame['LATITUDE']) && isset($frame['LONGITUDE'])) {
-                        return $frame['LATITUDE'] . ',' . $frame['LONGITUDE'];
-                    } else {
-                        return '-1,-1';
-                    }
-                }
-                break;
-        }
-        return 'Donnée principale non trouvée';
-    }
-
-    private function extractEventTypeFromMessage(array $config) {
-        switch ($config['profile']) {
-            case IOTService::INEO_SENS_ACS_TEMP:
-                if (isset($config['payload'])) {
-                    $frame = $config['payload'][0]['data'];
-                    return $frame['jcd_msg_type'];
-                }
-                break;
-            case IOTService::INEO_SENS_GPS:
-                if (isset($config['payload'])) {
-                    $frame = $config['payload'][0]['data'];
-                    if (isset($frame['NEW_EVT_TYPE'])) {
-                        return $frame['NEW_EVT_TYPE'];
-                    } else if ($frame['NEW_BATT']) {
-                        return 'BATTERY_INFO';
-                    }
-                }
-                break;
-        }
-        return 'Évenement non trouvé';
-    }
-
-    private function extractBatteryLevelFromMessage(array $config) {
-        switch ($config['profile']) {
-            case IOTService::INEO_SENS_ACS_TEMP:
-                if (isset($config['payload'])) {
-                    $frame = $config['payload'][0]['data'];
-                    return $frame['jcd_battery_level'];
-                }
-                break;
-            case IOTService::INEO_SENS_GPS:
-                if (isset($config['payload'])) {
-                    $frame = $config['payload'][0]['data'];
-                    return $frame['NEW_BATT'] ?? -1;
-                }
-                break;
-        }
-        return 'Évenement non trouvé';
-    }
 
     /**
      * @param array $message
@@ -169,7 +113,7 @@ class MessageService
             $entityManager->persist($device);
         }
 
-        $newBattery = $this->extractBatteryLevelFromMessage($message);
+        $newBattery = $this->IOTService->extractBatteryLevelFromMessage($message);
         if ($newBattery > -1) {
             $device->setBattery($newBattery);
         }
@@ -180,11 +124,32 @@ class MessageService
         $received
             ->setConfig($message)
             ->setDate($messageDate)
-            ->setMainData($this->extractMainDataFromConfig($message))
-            ->setEventType($this->extractEventTypeFromMessage($message))
+            ->setMainData($this->IOTService->extractMainDataFromConfig($message))
+            ->setEventType($this->IOTService->extractEventTypeFromMessage($message))
             ->setDevice($device);
 
         $entityManager->persist($received);
         return $received;
+    }
+
+    /**
+     * @param array $frame
+     * @param EntityManagerInterface $entityManager
+     * @throws LoaderError
+     * @throws RuntimeError
+     * @throws SyntaxError
+     * @throws Exception
+     */
+    public function onMessageReceived(array $frame, EntityManagerInterface $entityManager): void {
+        if (isset(IOTService::PROFILE_TO_ALERT[$frame['profile']])) {
+            $message = $this->createAndPersistMessageFromFrame($frame, $entityManager);
+            $config = $message->getConfig();
+            switch ($config['profile']) {
+                case IOTService::INEO_SENS_ACS_TEMP:
+                    $this->IOTService->treatTemperatureMessage($message);
+                    break;
+            }
+            $entityManager->flush();
+        }
     }
 }
