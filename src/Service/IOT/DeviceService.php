@@ -3,10 +3,7 @@
 namespace App\Service\IOT;
 
 use App\Entity\IOT\Device;
-use App\Entity\IOT\Message;
-use App\Entity\IOT\Profile;
 use Doctrine\ORM\EntityManagerInterface;
-use Exception;
 
 
 class DeviceService

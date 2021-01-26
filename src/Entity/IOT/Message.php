@@ -4,7 +4,7 @@
 namespace App\Entity\IOT;
 
 use App\Entity\IOT\Device as Device;
-use App\Service\IOTService;
+use App\Service\IOT\IOTService;
 use Doctrine\ORM\Mapping as ORM;
 use App\Repository\IOT as IOTRepository;
 
