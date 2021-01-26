@@ -57,19 +57,13 @@ class MessageService
     public function dataRowMessage(Message $message): array
     {
         $messageDate = $message->getDate()->format('d/m/Y H:i:s');
-        $messageDevice = $message->getDevice();
         $messageMainData = $message->getFormattedMainData();
         $messageMainType = $message->getEventType();
-        $profile = $messageDevice ? $messageDevice->getProfile() : null;
-        $battery = $messageDevice ? $messageDevice->getFormattedBatteryLevel() : null;
 
         return [
             'date' => $messageDate,
-            'device' => $messageDevice ? $messageDevice->getCode() : '',
             'mainData' => $messageMainData,
             'type' => $messageMainType,
-            'profile' => $profile ? $profile->getLabel() : '',
-            'battery' => $battery,
         ];
     }
 
