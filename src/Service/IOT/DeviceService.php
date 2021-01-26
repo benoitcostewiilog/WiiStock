@@ -64,7 +64,7 @@ class DeviceService
             'battery' => $device->getFormattedBatteryLevel(),
             'profile' => $device->getProfile() ? $device->getProfile()->getLabel() : 'Non défini',
             'action' => $this->templating->render('IOT/device/device_action.html.twig', [
-                'device' => $device
+                'device' => $device->getId()
             ])
         ];
     }
