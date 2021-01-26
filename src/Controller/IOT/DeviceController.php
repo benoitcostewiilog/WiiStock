@@ -2,6 +2,7 @@
 
 namespace App\Controller\IOT;
 
+use App\Service\IOT\DeviceService;
 use App\Service\IOT\MessageService;
 use App\Service\UserService;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
@@ -32,12 +33,12 @@ class DeviceController extends AbstractFOSRestController
     /**
      * @Route("/api", name="devices_api", options={"expose"=true}, methods="POST", condition="request.isXmlHttpRequest()")
      * @param Request $request
-     * @param MessageService $messageService
+     * @param DeviceService $deviceService
      * @return Response
      */
-    public function api(Request $request, MessageService $messageService): Response
+    public function api(Request $request, DeviceService $deviceService): Response
     {
-        $data = $messageService->getDataForDatatable($request->request);
+        $data = $deviceService->getDataForDatatable($request->request);
         return new JsonResponse($data);
     }
 }
