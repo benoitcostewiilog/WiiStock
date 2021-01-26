@@ -1,5 +1,5 @@
 $(function () {
-    let pathMessages = Routing.generate('messages_api');
+    let pathMessages = Routing.generate('device_messages_api');
     let tableMessageConfig = {
         processing: true,
         serverSide: true,
