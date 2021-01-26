@@ -2,8 +2,10 @@
 
 namespace App\Controller\IOT;
 
+use App\Entity\IOT\Device;
 use App\Service\IOT\MessageService;
 use App\Service\UserService;
+use Doctrine\ORM\EntityManagerInterface;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -15,29 +17,30 @@ use Symfony\Component\Routing\Annotation\Route;
 /**
  * Class IOTController
  * @package App\Controller
- * @Route("/messages")
  */
 class MessageController extends AbstractFOSRestController
 {
     /**
-     * @Route("/", name="messages_index")
-     * @param UserService $userService
+     * @Route("/devices/{device}/messages", name="device_message_index")
+     * @param Device $device
      * @return RedirectResponse|Response
      */
-    public function index(UserService $userService)
+    public function index(Device $device)
     {
-        return $this->render('IOT/messages_index.html.twig');
+        return $this->render('IOT/message/messages_index.html.twig', [
+            'device' => $device->getId()
+        ]);
     }
 
     /**
-     * @Route("/api", name="messages_api", options={"expose"=true}, methods="POST", condition="request.isXmlHttpRequest()")
+     * @Route("/api", name="device_messages_api", options={"expose"=true}, methods="POST", condition="request.isXmlHttpRequest()")
      * @param Request $request
      * @param MessageService $messageService
      * @return Response
      */
     public function api(Request $request, MessageService $messageService): Response
     {
-        $data = $messageService->getDataForDatatable($request->request);
+        $data = $messageService->getDataForDatatableFromDevice($request->request);
         return new JsonResponse($data);
     }
 }

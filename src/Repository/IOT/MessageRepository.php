@@ -2,6 +2,7 @@
 
 namespace App\Repository\IOT;
 
+use App\Entity\IOT\Device;
 use App\Entity\IOT\Message;
 use App\Helper\QueryCounter;
 use Doctrine\ORM\EntityRepository;
@@ -22,6 +23,11 @@ class MessageRepository extends EntityRepository
         $countTotal = QueryCounter::count($qb, 'message');
 
         if ($params) {
+            if (!empty($params->get('device'))) {
+                $qb
+                    ->where('message.device = :device')
+                    ->setParameter('device', $params->get('device'));
+            }
             if (!empty($params->get('start'))) $qb->setFirstResult($params->get('start'));
             if (!empty($params->get('length'))) $qb->setMaxResults($params->get('length'));
         }

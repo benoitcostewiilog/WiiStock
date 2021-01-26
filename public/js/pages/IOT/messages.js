@@ -7,7 +7,10 @@ $(function () {
         ordering: false,
         ajax: {
             "url": pathMessages,
-            "type": "POST"
+            "type": "POST",
+            'data' : {
+                'device': $('#device').val()
+            },
         },
         columns: [
             {"data": 'device', 'title': 'Capteur'},

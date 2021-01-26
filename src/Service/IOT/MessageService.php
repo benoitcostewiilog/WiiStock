@@ -33,7 +33,7 @@ class MessageService
      * @param null $params
      * @return array
      */
-    public function getDataForDatatable($params = null)
+    public function getDataForDatatableFromDevice($params = null)
     {
 
         $queryResult = $this->em->getRepository(Message::class)->findByParams($params);

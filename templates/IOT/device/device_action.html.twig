@@ -1,0 +1,10 @@
+<div class="d-flex">
+    <div class="dropdown dropright">
+        {% include 'datatable/dotsRow.html.twig' %}
+        <div class="dropdown-menu dropdown-follow-gt pointer">
+            <a class="dropdown-item" href="{{ path('device_message_index', {'device': device}) }}">
+                <i class='fas fa-redirect mr-2'></i>Voir les messages
+            </a>
+        </div>
+    </div>
+</div>

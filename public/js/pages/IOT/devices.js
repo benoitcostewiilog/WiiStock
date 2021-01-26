@@ -10,6 +10,7 @@ $(function () {
             "type": "POST"
         },
         columns: [
+            {"data": 'action', 'title': 'Actions'},
             {"data": 'code', 'title': 'Code'},
             {"data": 'battery', 'title': 'Niveau de batterie'},
             {"data": 'profile', 'title': 'Profil de capteur'},

@@ -27,7 +27,7 @@ class DeviceController extends AbstractFOSRestController
      */
     public function index(UserService $userService)
     {
-        return $this->render('IOT/devices_index.html.twig');
+        return $this->render('IOT/device/devices_index.html.twig');
     }
 
     /**
