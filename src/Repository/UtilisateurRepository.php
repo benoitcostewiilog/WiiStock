@@ -201,6 +201,14 @@ class UtilisateurRepository extends EntityRepository implements UserLoaderInterf
         }
     }
 
+    public function findByUsername(string $username): ?Utilisateur {
+        return $this->createQueryBuilder("user")
+            ->where("user.username = :username")
+            ->setParameter("username", $username)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function getUserMailByIsMailSendRole()
     {
         $result = $this->createQueryBuilder('utilisateur')

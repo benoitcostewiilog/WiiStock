@@ -46,7 +46,7 @@ class InitUserFixtures extends Fixture implements FixtureGroupInterface
             $user = new Utilisateur();
             $password = $this->userPasswordEncoder->encodePassword($user, "Admin1234");
             $user
-                ->setUsername($adminEmail)
+                ->setUsername("admin")
                 ->setEmail($adminEmail)
                 ->setRole($adminRole)
                 ->setStatus(true)
