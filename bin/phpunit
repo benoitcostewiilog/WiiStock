@@ -1,6 +1,12 @@
 #!/usr/bin/env php
 <?php
 
+echo "Updating test database";
+shell_exec("php bin/console d:m:m --env=test --no-interaction");
+shell_exec("php bin/console d:s:u --env=test --force");
+shell_exec("php bin/console d:f:l --env=test --group=fixtures --append");
+shell_exec("php bin/console d:f:l --env=test --group=tests --append");
+
 if (!file_exists(dirname(__DIR__).'/vendor/symfony/phpunit-bridge/bin/simple-phpunit.php')) {
     echo "Unable to find the `simple-phpunit.php` script in `vendor/symfony/phpunit-bridge/bin/`.\n";
     exit(1);
