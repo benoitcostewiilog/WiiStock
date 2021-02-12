@@ -25,9 +25,10 @@ yarn-error.log
 /.vs-code/
 /.idea/
 /public/uploads/attachements/
-/public/generated/
 /SnoreToast.lnk
 /assets/scss/_customFont.scss
+/assets/json/generated/
+/assets/js/generated/
 /desktop.ini
 ###< wiilog/wiistock ###
 

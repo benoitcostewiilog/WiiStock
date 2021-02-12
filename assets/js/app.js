@@ -15,6 +15,19 @@ import BrowserSupport from './support';
 import Wiistock from './general';
 import {LOADING_CLASS, wrapLoadingOnActionButton} from './loading';
 import './tooltips';
+import './bootstrap-datetimepicker';
+
+import * as alerts from './alerts';
+import {Select2} from "./select2";
+import * as common from './common';
+import * as scriptWiilog from './script-wiilog';
+import * as initModal from './init-modal';
+import * as datatable from './datatable';
+import * as translations from './translations';
+import * as Constants from './constants';
+
+import './collapsible';
+import './script-menu';
 
 import '../scss/app.scss';
 
@@ -30,10 +43,22 @@ importChart();
 ///////////////// Functions
 
 function importWiistock() {
-    global.LOADING_CLASS = LOADING_CLASS;
-
-    global.Wiistock = Wiistock;
-    global.wrapLoadingOnActionButton = wrapLoadingOnActionButton;
+    global = Object.assign(
+        global,
+        datatable,
+        translations,
+        scriptWiilog,
+        initModal,
+        Constants,
+        common,
+        alerts,
+        {
+            Wiistock,
+            Select2,
+            wrapLoadingOnActionButton,
+            LOADING_CLASS
+        }
+    )
 }
 
 function importJquery() {
@@ -58,7 +83,7 @@ function importQuill() {
 }
 
 function importRouting() {
-    const routes = require('../../public/generated/routes.json');
+    const routes = require('../json/generated/routes.json');
     Routing.setRoutingData(routes);
 
     global.Routing = Routing;

@@ -1,36 +1,3 @@
-const PAGE_TRANSFER_REQUEST = 'rtransfer';
-const PAGE_TRANSFER_ORDER = 'otransfer';
-const PAGE_DEM_COLLECTE = 'dcollecte';
-const PAGE_DEM_LIVRAISON = 'dlivraison';
-const PAGE_HAND = 'handling';
-const PAGE_ORDRE_COLLECTE = 'ocollecte';
-const PAGE_ORDRE_LIVRAISON = 'olivraison';
-const PAGE_PREPA = 'prépa';
-const PAGE_ARRIVAGE = 'arrivage';
-const PAGE_IMPORT = 'import';
-const PAGE_ALERTE = 'alerte';
-const PAGE_RECEPTION = 'reception';
-const PAGE_MVT_STOCK = 'mvt_stock';
-const PAGE_MVT_TRACA = 'mvt_traca';
-const PAGE_PACK = 'pack';
-const PAGE_LITIGE_ARR = 'litige';
-const PAGE_ENCOURS = 'encours';
-const PAGE_INV_ENTRIES = 'inv_entries';
-const PAGE_INV_MISSIONS = 'inv_missions';
-const PAGE_INV_SHOW_MISSION = 'inv_mission_show';
-const PAGE_RCPT_TRACA = 'reception_traca';
-const PAGE_DISPATCHES = 'acheminement';
-const PAGE_STATUS = 'status';
-const PAGE_EMPLACEMENT = 'emplacement';
-const PAGE_URGENCES = 'urgences';
-
-const STATUT_ACTIF = 'disponible';
-const STATUT_INACTIF = 'consommé';
-const STATUT_EN_TRANSIT = 'en transit';
-
-/** Constants which define a valid barcode */
-const BARCODE_VALID_REGEX = /^[A-Za-z0-9_ \/\-]{1,24}$/;
-
 // alert modals config
 const AUTO_HIDE_DEFAULT_DELAY = 2000;
 
@@ -57,7 +24,7 @@ $(function () {
     $('.removeRequired, .form-group, label').removeClass('required');
 });
 
-function openQueryModal(query = null, event) {
+export function openQueryModal(query = null, event) {
     if (event) {
         event.preventDefault();
     }
@@ -82,7 +49,7 @@ function openQueryModal(query = null, event) {
 }
 
 //DELETE
-function deleteRow(button, modal, submit) {
+export function deleteRow(button, modal, submit) {
     let id = button.data('id');
     modal.find(submit).attr('value', id);
 }
@@ -96,7 +63,7 @@ function deleteRow(button, modal, submit) {
  * @param {string} path le chemin pris pour envoyer les données.
  *
  */
-function showRow(button, path, modal) {
+export function showRow(button, path, modal) {
     let id = button.data('id');
     let params = JSON.stringify(id);
 
@@ -124,7 +91,7 @@ function showRow(button, path, modal) {
  * @param wantsFreeFieldsRequireCheck
  */
 
-function editRow(button, path, modal, submit, editorToInit = false, editor = '.editor-container-edit', setMaxQuantity = false, afterLoadingEditModal = () => {}, wantsFreeFieldsRequireCheck = true) {
+export function editRow(button, path, modal, submit, editorToInit = false, editor = '.editor-container-edit', setMaxQuantity = false, afterLoadingEditModal = () => {}, wantsFreeFieldsRequireCheck = true) {
     clearFormErrors(modal);
     let id = button.data('id');
     let ref = button.data('ref');
@@ -165,7 +132,7 @@ function editRow(button, path, modal, submit, editorToInit = false, editor = '.e
 
 }
 
-function setMaxQuantityEdit(select) {
+export function setMaxQuantityEdit(select) {
     let params = {
         refArticleId: select.val(),
     };
@@ -175,7 +142,7 @@ function setMaxQuantityEdit(select) {
     }, 'json');
 }
 
-function toggleRadioButton($button) {
+export function toggleRadioButton($button) {
     let sel = $button.data('title');
     let tog = $button.data('toggle');
     $('#' + tog).prop('value', sel);
@@ -183,7 +150,7 @@ function toggleRadioButton($button) {
     $('span[data-toggle="' + tog + '"][data-title="' + sel + '"]').removeClass('not-active').addClass('active');
 }
 
-function toggleRequestType($switch) {
+export function toggleRequestType($switch) {
     let type = $switch.val();
 
     let path = Routing.generate('demande', true);
@@ -224,11 +191,11 @@ function toggleRequestType($switch) {
     }, 'json');
 }
 
-function initEditorInModal(modal) {
+export function initEditorInModal(modal) {
     initEditor(modal + ' .editor-container');
 }
 
-function initEditor(div) {
+export function initEditor(div) {
     // protection pour éviter erreur console si l'élément n'existe pas dans le DOM
     if ($(div).length) {
         return new Quill(div, {
@@ -252,7 +219,7 @@ function initEditor(div) {
 
 //FONCTION REFARTICLE
 
-function typeChoice($select, $freeFieldsContainer = null) {
+export function typeChoice($select, $freeFieldsContainer = null) {
     if(!$freeFieldsContainer) {
         $freeFieldsContainer = $select.closest('.modal').find('.free-fields-container');
     }
@@ -264,7 +231,7 @@ function typeChoice($select, $freeFieldsContainer = null) {
     }
 }
 
-function updateQuantityDisplay($elem) {
+export function updateQuantityDisplay($elem) {
     let $modalBody = $elem.closest('.modal-body');
     const $reference = $modalBody.find('.reference');
     const $article = $modalBody.find('.article');
@@ -288,7 +255,7 @@ function updateQuantityDisplay($elem) {
     }
 }
 
-function toggleRequiredChampsLibres($select, require, $freeFieldContainer = null) {
+export function toggleRequiredChampsLibres($select, require, $freeFieldContainer = null) {
     const $bloc = $freeFieldContainer
         ? $freeFieldContainer
         : $select
@@ -342,15 +309,15 @@ function toggleRequiredChampsLibres($select, require, $freeFieldContainer = null
     }
 }
 
-function clearDiv() {
+export function clearDiv() {
     $('.clear').html('');
 }
 
-function clearErrorMsg($div) {
+export function clearErrorMsg($div) {
     $div.closest('.modal').find('.error-msg').html('');
 }
 
-function clearInvalidInputs($modal) {
+export function clearInvalidInputs($modal) {
     let $inputs = $modal.find('.modal-body').find(".data");
     $inputs.each(function () {
         // on enlève les classes is-invalid
@@ -359,7 +326,7 @@ function clearInvalidInputs($modal) {
     });
 }
 
-function displayError(modal, msg, success) {
+export function displayError(modal, msg, success) {
     if (!success) {
         modal.find('.error-msg').html(msg);
     } else {
@@ -367,7 +334,7 @@ function displayError(modal, msg, success) {
     }
 }
 
-function clearModal(modal) {
+export function clearModal(modal) {
     let $modal = typeof modal === 'string' ? $(modal) : modal;
 
     let switches = $modal.find('.wii-switch').find('input[type="radio"]');
@@ -428,7 +395,7 @@ function clearModal(modal) {
     $modal.find('.isRight').removeClass('isRight');
 }
 
-function clearCheckboxes($modal) {
+export function clearCheckboxes($modal) {
     let checkboxes = $modal.find('.checkbox');
     checkboxes.each(function () {
         if (!$(this).hasClass('no-clear')) {
@@ -443,7 +410,7 @@ function clearCheckboxes($modal) {
     });
 }
 
-function saveFilters(page, tableSelector, callback) {
+export function saveFilters(page, tableSelector, callback) {
     let path = Routing.generate('filter_sup_new');
 
     const $filterDateMin = $('.filter-date-min');
@@ -514,7 +481,7 @@ function saveFilters(page, tableSelector, callback) {
     }, 'json');
 }
 
-function checkAndDeleteRow(icon, modalName, route, submit, getParams = null) {
+export function checkAndDeleteRow(icon, modalName, route, submit, getParams = null) {
     let $modalBody = $(modalName).find('.modal-body');
     let $submit = $(submit);
     let id = icon.data('id');
@@ -549,32 +516,17 @@ function checkAndDeleteRow(icon, modalName, route, submit, getParams = null) {
     });
 }
 
-function hideSpinner(div) {
+export function hideSpinner(div) {
     div.removeClass('d-flex');
     div.addClass('d-none');
 }
 
-function loadSpinner(div) {
+export function loadSpinner(div) {
     div.removeClass('d-none');
     div.addClass('d-flex');
 }
 
-function displayRight(div) {
-    div.addClass('isRight');
-    div.removeClass('isWrong');
-}
-
-function displayWrong(div) {
-    div.removeClass('isRight');
-    div.addClass('isWrong');
-}
-
-function displayNeutral(div) {
-    div.removeClass('isRight');
-    div.removeClass('isWrong');
-}
-
-function redirectToDemandeLivraison(demandeId) {
+export function redirectToDemandeLivraison(demandeId) {
     window.open(Routing.generate('demande_show', {id: demandeId}));
 }
 
@@ -585,7 +537,7 @@ function redirectToDemandeLivraison(demandeId) {
  * @param button
  * @param forceHide
  */
-function onFlyFormToggle(id, button, forceHide = false) {
+export function onFlyFormToggle(id, button, forceHide = false) {
     let $toShow = $('#' + id);
     let $toAdd = $('#' + button);
     const $flyForm = $toShow.closest('.fly-form');
@@ -629,7 +581,7 @@ function onFlyFormToggle(id, button, forceHide = false) {
 }
 
 
-function onFlyFormSubmit(path, button, toHide, buttonAdd, $select = null) {
+export function onFlyFormSubmit(path, button, toHide, buttonAdd, $select = null) {
     let inputs = button.closest('.fly-form').find(".newFormulaire");
     let params = {};
     let formIsValid = true;
@@ -666,7 +618,7 @@ function onFlyFormSubmit(path, button, toHide, buttonAdd, $select = null) {
     }
 }
 
-function initDateTimePicker(dateInput = '#dateMin, #dateMax, #expectedDate', format = 'DD/MM/YYYY', minDate = false, defaultHours = null, defaultMinutes = null, disableDates = null) {
+export function initDateTimePicker(dateInput = '#dateMin, #dateMax, #expectedDate', format = 'DD/MM/YYYY', minDate = false, defaultHours = null, defaultMinutes = null, disableDates = null) {
     let options = {
         format: format,
         useCurrent: false,
@@ -699,7 +651,7 @@ function initDateTimePicker(dateInput = '#dateMin, #dateMax, #expectedDate', for
 }
 
 
-function warningEmptyDatesForCsv() {
+export function warningEmptyDatesForCsv() {
     showBSAlert('Veuillez saisir des dates dans le filtre en haut de page.', 'danger');
     $('#dateMin, #dateMax').addClass('is-invalid');
     $('.is-invalid').on('click', function () {
@@ -707,7 +659,7 @@ function warningEmptyDatesForCsv() {
     });
 }
 
-function displayFiltersSup(data) {
+export function displayFiltersSup(data) {
     data.forEach(function (element) {
         switch (element.field) {
             case 'utilisateurs':
@@ -809,7 +761,7 @@ function displayFiltersSup(data) {
  * @param {boolean} autoHide delay in milliseconds
  * @return {jQuery} The displayed modal
  */
-function displayAlertModal(title, $body, buttonConfig, iconType = undefined, autoHide = false) {
+export function displayAlertModal(title, $body, buttonConfig, iconType = undefined, autoHide = false) {
     const $alertModal = getBSAlertModal();
     hideSpinner($alertModal.find('.modal-footer .spinner'));
     $alertModal.find('.modal-footer-wrapper').removeClass('d-none');
@@ -880,7 +832,7 @@ function displayAlertModal(title, $body, buttonConfig, iconType = undefined, aut
     $alertModal.modal('show');
 }
 
-function managePrintButtonTooltip(active, $button) {
+export function managePrintButtonTooltip(active, $button) {
     if ($button) {
         $button.tooltip(
             active ? undefined : 'dispose'
@@ -888,7 +840,7 @@ function managePrintButtonTooltip(active, $button) {
     }
 }
 
-function initOnTheFlyCopies($elems) {
+export function initOnTheFlyCopies($elems) {
     $elems.each(function () {
         $(this).keyup(function () {
             $(this).closest('.form-group').find('.copiedOnTheFly').val($(this).val());
@@ -896,7 +848,7 @@ function initOnTheFlyCopies($elems) {
     });
 }
 
-function saveExportFile(routeName, needsDateFilters = true, routeParam = {}) {
+export function saveExportFile(routeName, needsDateFilters = true, routeParam = {}) {
     const $spinner = $('#spinner');
     loadSpinner($spinner);
 
@@ -933,7 +885,7 @@ function saveExportFile(routeName, needsDateFilters = true, routeParam = {}) {
     }
 }
 
-function fillDemandeurField($modal) {
+export function fillDemandeurField($modal) {
     const $operatorSelect = $modal.find('.select2-declarant');
     const $loggedUserInput = $modal.find('input[hidden][name="logged-user"]');
     const userId = $loggedUserInput.data('id');
@@ -955,7 +907,7 @@ function fillDemandeurField($modal) {
     }
 }
 
-function registerNumberInputProtection($inputs) {
+export function registerNumberInputProtection($inputs) {
     const forbiddenChars = [
         "e",
         "E",
@@ -970,7 +922,7 @@ function registerNumberInputProtection($inputs) {
     });
 }
 
-function limitTextareaLength($textarea, lineNumber, lineLength) {
+export function limitTextareaLength($textarea, lineNumber, lineLength) {
     const textareaVal = ($textarea.val() || '');
     const linesSplit = textareaVal
         .replace(/\r\n/g,'\n')
@@ -997,7 +949,7 @@ function limitTextareaLength($textarea, lineNumber, lineLength) {
     }
 }
 
-function GetRequestQuery() {
+export function GetRequestQuery() {
     const searchSplit = (location.search.substring(1, location.search.length) || '').split('&');
     const res = {};
     for (let i = 0; i < searchSplit.length; i += 1) {
@@ -1010,7 +962,7 @@ function GetRequestQuery() {
     return res;
 }
 
-function SetRequestQuery(queryParams = {}) {
+export function SetRequestQuery(queryParams = {}) {
     const queryParamStr = Object
         .keys(queryParams)
         .map((key) => `${encodeURIComponent(key)}=${queryParams[key] ? encodeURIComponent(queryParams[key]) : ''}`)
@@ -1021,7 +973,7 @@ function SetRequestQuery(queryParams = {}) {
     window.history.pushState({path: newUrl}, document.title, newUrl);
 }
 
-function onTypeChange($select) {
+export function onTypeChange($select) {
     const $modal = $select.closest('.modal');
     toggleRequiredChampsLibres($select, 'create');
     const $freeFieldsContainer = $modal.find('.free-fields-container');
@@ -1067,6 +1019,6 @@ function onTypeChange($select) {
     }
 }
 
-function getBSAlertModal() {
+export function getBSAlertModal() {
     return $('#alert-modal');
 }

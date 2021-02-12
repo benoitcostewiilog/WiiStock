@@ -17,7 +17,7 @@ $(function (){
  * @param {'danger'|'success'|'warning'} color
  * @param {boolean = true} remove
  */
-function showBSAlert(message, color, remove = true) {
+export function showBSAlert(message, color, remove = true) {
     if ((typeof message === 'string') && message) {
         const $alertContainer = $('#alerts-container');
         const $alert = $('#alert-template')

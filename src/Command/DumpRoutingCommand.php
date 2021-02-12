@@ -22,7 +22,7 @@ class DumpRoutingCommand extends DumpCommand {
 
     protected function execute(InputInterface $input, OutputInterface $output): int {
         $url = explode("://", $_SERVER["APP_URL"]);
-        $target = "public/generated/routes.json";
+        $target = "assets/json/generated/routes.json";
 
         $input->setOption("format", "json");
         $input->setOption("target", $target);

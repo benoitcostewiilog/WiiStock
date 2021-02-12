@@ -1,4 +1,4 @@
-function initTooltips($elements) {
+export function initTooltips($elements) {
     $elements.each(function () {
         $(this).tooltip('dispose');
         $(this).tooltip();
@@ -8,7 +8,7 @@ function initTooltips($elements) {
 /**
  * Transform milliseconds to 'X h X min' or 'X min' or '< 1 min'
  */
-function renderMillisecondsToDelay(milliseconds, type) {
+export function renderMillisecondsToDelay(milliseconds, type) {
     let res;
 
     if (!isNaN(milliseconds) && type === 'display') {

@@ -1,3 +1,7 @@
+
+/** Constants which define a valid barcode */
+const BARCODE_VALID_REGEX = /^[A-Za-z0-9_ \/\-]{1,24}$/;
+
 const FORM_INVALID_CLASS = 'is-invalid';
 const FORM_ERROR_CONTAINER = 'error-msg';
 const FILE_MAX_SIZE = 10000000;
@@ -19,7 +23,7 @@ let droppedFiles = [];
  *   - validator function which calculate custom form validation
  *   - confirmMessage Function which return promise throwing when form can be submited
  */
-function InitModal($modal, $submit, path, options = {}) {
+export function InitModal($modal, $submit, path, options = {}) {
     if(options.clearOnClose) {
         $modal.on('hidden.bs.modal', function () {
             clearModal($modal);
@@ -67,7 +71,7 @@ function InitModal($modal, $submit, path, options = {}) {
  * @param {jQuery} $submit jQuery element of the submit button
  * @param {string} path
  */
-function SubmitAction($modal,
+export function SubmitAction($modal,
                       $submit,
                       path,
                       {confirmMessage, ...options} = {}) {
@@ -83,6 +87,167 @@ function SubmitAction($modal,
                 return processSubmitAction($modal, $submit, path, options);
             }
         });
+}
+
+/**
+ * Remove all form errors
+ * @param $modal jQuery modal
+ */
+export function clearFormErrors($modal) {
+    $modal
+        .find(`.${FORM_INVALID_CLASS}`)
+        .removeClass(FORM_INVALID_CLASS);
+
+    $modal
+        .find(`.${FORM_ERROR_CONTAINER}`)
+        .removeClass("p-4")
+        .empty();
+}
+
+/**
+ *
+ * @param {jQuery} $modal jQuery modal
+ * @param {boolean} [isAttachmentForm]
+ * @param {function} [validator]
+ * @return {{errorMessages: Array<string>, success: boolean, data: FormData|Object.<*,*>, $isInvalidElements: Array<*>}}
+ */
+export function ProcessForm($modal, isAttachmentForm = undefined, validator = undefined) {
+    const data = {};
+
+    const dataArrayForm = processDataArrayForm($modal, data);
+    const dataInputsForm = processInputsForm($modal, data, isAttachmentForm);
+    const dataCheckboxesForm = processCheckboxesForm($modal, data, isAttachmentForm);
+    const dataSwitchesForm = processSwitchesForm($modal, data, isAttachmentForm);
+    const dataFilesForm = processFilesForm($modal, data);
+    const dataValidator = validator
+        ? (validator($modal) || {success: true, errorMessages: [], $isInvalidElements: []})
+        : {success: true, errorMessages: [], $isInvalidElements: []};
+
+    return {
+        success: (
+            dataArrayForm.success
+            && dataInputsForm.success
+            && dataCheckboxesForm.success
+            && dataSwitchesForm.success
+            && dataFilesForm.success
+            && dataValidator.success
+        ),
+        errorMessages: [
+            ...dataArrayForm.errorMessages,
+            ...dataInputsForm.errorMessages,
+            ...dataCheckboxesForm.errorMessages,
+            ...dataFilesForm.errorMessages,
+            ...dataSwitchesForm.errorMessages,
+            ...(dataValidator.errorMessages || [])
+        ],
+        $isInvalidElements: [
+            ...dataArrayForm.$isInvalidElements,
+            ...dataInputsForm.$isInvalidElements,
+            ...dataCheckboxesForm.$isInvalidElements,
+            ...dataFilesForm.$isInvalidElements,
+            ...dataSwitchesForm.$isInvalidElements,
+            ...(dataValidator.$isInvalidElements || [])
+        ],
+        data: {
+            ...data,
+            ...(dataValidator.data || {})
+        }
+    };
+}
+
+/**
+ * Display error message and error put field in error
+ * @param {*} $modal jQuery element of the modal
+ * @param {{$isInvalidElements: *|undefined, errorMessages: string[]|undefined}} options jQuery elements in error, errorMessages error messages
+ */
+export function displayFormErrors($modal, {$isInvalidElements, errorMessages} = {}) {
+    if ($isInvalidElements) {
+        $isInvalidElements.forEach(($field) => {
+            $field.addClass(FORM_INVALID_CLASS);
+        });
+    }
+
+    const filledErrorMessages = (errorMessages || []).filter(Boolean);
+    if (filledErrorMessages.length > 0) {
+        const $message = filledErrorMessages.join('<br/>');
+        const $innerModalMessageError = $modal.find(`.${FORM_ERROR_CONTAINER}`);
+        if ($innerModalMessageError.length > 0) {
+            $innerModalMessageError.addClass("p-4");
+            $innerModalMessageError.html($message);
+        } else {
+            showBSAlert($message, 'danger');
+        }
+    }
+}
+
+export function removeAttachment($elem) {
+    let deleted = false;
+    let fileName = $elem.closest('.attachement').find('a').first().text().trim();
+    $elem.closest('.attachement').remove();
+    droppedFiles.forEach(file => {
+        if (file.name === fileName && !deleted) {
+            deleted = true;
+            droppedFiles.splice(droppedFiles.indexOf(file), 1);
+        }
+    });
+}
+
+export function dragEnterDiv(event, div) {
+    displayWrong(div);
+}
+
+export function dragOverDiv(event, div) {
+    event.preventDefault();
+    event.stopPropagation();
+    displayWrong(div);
+    return false;
+}
+
+export function dragLeaveDiv(event, div) {
+    event.preventDefault();
+    event.stopPropagation();
+    displayNeutral(div);
+    return false;
+}
+
+export function openFileExplorer(span) {
+    span.closest('.modal').find('.fileInput').trigger('click');
+}
+
+export function saveDroppedFiles(event, $div) {
+    if (event.dataTransfer) {
+        if (event.dataTransfer.files.length) {
+            event.preventDefault();
+            event.stopPropagation();
+            let files = Array.from(event.dataTransfer.files);
+
+            const $inputFile = $div.find('.fileInput');
+            saveInputFiles($inputFile, files);
+        }
+    }
+    else {
+        displayWrong($div);
+    }
+    return false;
+}
+
+export function saveInputFiles($inputFile, files) {
+    let filesToSave = files || $inputFile[0].files;
+    const isMultiple = $inputFile.prop('multiple');
+
+    Array.from(filesToSave).forEach(file => {
+        if (checkSizeFormat(file) && checkFileFormat(file)) {
+            if (!isMultiple) {
+                droppedFiles = [];
+            }
+            droppedFiles.push(file);
+        }
+    });
+
+    let dropFrame = $inputFile.closest('.dropFrame');
+
+    displayAttachements(filesToSave, dropFrame, isMultiple);
+    $inputFile[0].value = '';
 }
 
 /**
@@ -155,21 +320,6 @@ function processSubmitAction($modal,
     }
 }
 
-/**
- * Remove all form errors
- * @param $modal jQuery modal
- */
-function clearFormErrors($modal) {
-    $modal
-        .find(`.${FORM_INVALID_CLASS}`)
-        .removeClass(FORM_INVALID_CLASS);
-
-    $modal
-        .find(`.${FORM_ERROR_CONTAINER}`)
-        .removeClass("p-4")
-        .empty();
-}
-
 function treatSubmitActionSuccess($modal, data, tables, keepModal, keepForm) {
     resetDroppedFiles();
     if (data.redirect && !keepModal) {
@@ -205,57 +355,6 @@ function treatSubmitActionSuccess($modal, data, tables, keepModal, keepForm) {
         showBSAlert(data.msg, 'success');
     }
     return true;
-}
-
-/**
- *
- * @param {jQuery} $modal jQuery modal
- * @param {boolean} [isAttachmentForm]
- * @param {function} [validator]
- * @return {{errorMessages: Array<string>, success: boolean, data: FormData|Object.<*,*>, $isInvalidElements: Array<*>}}
- */
-function ProcessForm($modal, isAttachmentForm = undefined, validator = undefined) {
-    const data = {};
-
-    const dataArrayForm = processDataArrayForm($modal, data);
-    const dataInputsForm = processInputsForm($modal, data, isAttachmentForm);
-    const dataCheckboxesForm = processCheckboxesForm($modal, data, isAttachmentForm);
-    const dataSwitchesForm = processSwitchesForm($modal, data, isAttachmentForm);
-    const dataFilesForm = processFilesForm($modal, data);
-    const dataValidator = validator
-        ? (validator($modal) || {success: true, errorMessages: [], $isInvalidElements: []})
-        : {success: true, errorMessages: [], $isInvalidElements: []};
-
-    return {
-        success: (
-            dataArrayForm.success
-            && dataInputsForm.success
-            && dataCheckboxesForm.success
-            && dataSwitchesForm.success
-            && dataFilesForm.success
-            && dataValidator.success
-        ),
-        errorMessages: [
-            ...dataArrayForm.errorMessages,
-            ...dataInputsForm.errorMessages,
-            ...dataCheckboxesForm.errorMessages,
-            ...dataFilesForm.errorMessages,
-            ...dataSwitchesForm.errorMessages,
-            ...(dataValidator.errorMessages || [])
-        ],
-        $isInvalidElements: [
-            ...dataArrayForm.$isInvalidElements,
-            ...dataInputsForm.$isInvalidElements,
-            ...dataCheckboxesForm.$isInvalidElements,
-            ...dataFilesForm.$isInvalidElements,
-            ...dataSwitchesForm.$isInvalidElements,
-            ...(dataValidator.$isInvalidElements || [])
-        ],
-        data: {
-            ...data,
-            ...(dataValidator.data || {})
-        }
-    };
 }
 
 
@@ -620,31 +719,6 @@ function isBarcodeValid($input) {
     return Boolean(!value || BARCODE_VALID_REGEX.test(value));
 }
 
-/**
- * Display error message and error put field in error
- * @param {*} $modal jQuery element of the modal
- * @param {{$isInvalidElements: *|undefined, errorMessages: string[]|undefined}} options jQuery elements in error, errorMessages error messages
- */
-function displayFormErrors($modal, {$isInvalidElements, errorMessages} = {}) {
-    if ($isInvalidElements) {
-        $isInvalidElements.forEach(($field) => {
-            $field.addClass(FORM_INVALID_CLASS);
-        });
-    }
-
-    const filledErrorMessages = (errorMessages || []).filter(Boolean);
-    if (filledErrorMessages.length > 0) {
-        const $message = filledErrorMessages.join('<br/>');
-        const $innerModalMessageError = $modal.find(`.${FORM_ERROR_CONTAINER}`);
-        if ($innerModalMessageError.length > 0) {
-            $innerModalMessageError.addClass("p-4");
-            $innerModalMessageError.html($message);
-        } else {
-            showBSAlert($message, 'danger');
-        }
-    }
-}
-
 function displayAttachements(files, $dropFrame, isMultiple = true) {
 
     const errorMessages = [];
@@ -694,82 +768,12 @@ function withoutExtension(fileName) {
     return array[0];
 }
 
-function removeAttachment($elem) {
-    let deleted = false;
-    let fileName = $elem.closest('.attachement').find('a').first().text().trim();
-    $elem.closest('.attachement').remove();
-    droppedFiles.forEach(file => {
-        if (file.name === fileName && !deleted) {
-            deleted = true;
-            droppedFiles.splice(droppedFiles.indexOf(file), 1);
-        }
-    });
-}
-
 function checkFileFormat(file) {
     return file.name.includes('.') !== false;
 }
 
 function checkSizeFormat(file) {
     return file.size < FILE_MAX_SIZE;
-}
-
-function dragEnterDiv(event, div) {
-    displayWrong(div);
-}
-
-function dragOverDiv(event, div) {
-    event.preventDefault();
-    event.stopPropagation();
-    displayWrong(div);
-    return false;
-}
-
-function dragLeaveDiv(event, div) {
-    event.preventDefault();
-    event.stopPropagation();
-    displayNeutral(div);
-    return false;
-}
-
-function openFileExplorer(span) {
-    span.closest('.modal').find('.fileInput').trigger('click');
-}
-
-function saveDroppedFiles(event, $div) {
-    if (event.dataTransfer) {
-        if (event.dataTransfer.files.length) {
-            event.preventDefault();
-            event.stopPropagation();
-            let files = Array.from(event.dataTransfer.files);
-
-            const $inputFile = $div.find('.fileInput');
-            saveInputFiles($inputFile, files);
-        }
-    }
-    else {
-        displayWrong($div);
-    }
-    return false;
-}
-
-function saveInputFiles($inputFile, files) {
-    let filesToSave = files || $inputFile[0].files;
-    const isMultiple = $inputFile.prop('multiple');
-
-    Array.from(filesToSave).forEach(file => {
-        if (checkSizeFormat(file) && checkFileFormat(file)) {
-            if (!isMultiple) {
-                droppedFiles = [];
-            }
-            droppedFiles.push(file);
-        }
-    });
-
-    let dropFrame = $inputFile.closest('.dropFrame');
-
-    displayAttachements(filesToSave, dropFrame, isMultiple);
-    $inputFile[0].value = '';
 }
 
 function resetDroppedFiles() {
@@ -802,4 +806,19 @@ function saveData($input, data, name, val, isAttachmentForm) {
             data[name] = val;
         }
     }
+}
+
+function displayWrong(div) {
+    div.removeClass('isRight');
+    div.addClass('isWrong');
+}
+
+function displayRight(div) {
+    div.addClass('isRight');
+    div.removeClass('isWrong');
+}
+
+function displayNeutral(div) {
+    div.removeClass('isRight');
+    div.removeClass('isWrong');
 }

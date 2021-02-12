@@ -12,20 +12,20 @@ $(function () {
     });
 });
 
-function hideColumns(table, data) {
+export function hideColumns(table, data) {
     data.forEach(function (col) {
         table.column(col + ':name').visible(false);
     })
 }
 
-function showColumns(table, data) {
+export function showColumns(table, data) {
     table.columns().visible(false);
     data.forEach(function (col) {
         table.columns(col + ':name').visible(true);
     })
 }
 
-function extendsDateSort(name) {
+export function extendsDateSort(name) {
     $.extend($.fn.dataTableExt.oSort, {
         [name + "-pre"]: function (date) {
             const dateSplitted = date.split(' ');
@@ -51,7 +51,7 @@ function extendsDateSort(name) {
     });
 }
 
-function initActionOnRow(row) {
+export function initActionOnRow(row) {
     if ($(row).find('.action-on-click').get(0)) {
         $(row).addClass('pointer');
         $(row).on('mouseup', 'td:not(.noVis)', function (event) {
@@ -79,14 +79,14 @@ function initActionOnRow(row) {
     }
 }
 
-function showOrHideColumn(check, concernedTable) {
+export function showOrHideColumn(check, concernedTable) {
     let columnName = check.data('name');
     let column = concernedTable.column(columnName + ':name');
     column.visible(!column.visible());
     check.toggleClass('data');
 }
 
-function manageArticleAndRefSearch($input, $printButton) {
+export function manageArticleAndRefSearch($input, $printButton) {
     if ($input.val() === '' && $('#filters').find('.filter').length <= 0) {
         if ($printButton.is('button')) {
             $printButton
@@ -119,12 +119,12 @@ function manageArticleAndRefSearch($input, $printButton) {
     }
 }
 
-function toggleInputRadioOnRow(tr) {
+export function toggleInputRadioOnRow(tr) {
     const $checkbox = $(tr).find('input[type="checkbox"]');
     $checkbox.prop('checked', !$checkbox.is(':checked')).trigger("change");
 }
 
-function createDatatableDomFooter({information, length, pagination}) {
+export function createDatatableDomFooter({information, length, pagination}) {
     return (information || length || pagination)
         ? (
             `<"row mt-2 align-items-center"
@@ -136,7 +136,7 @@ function createDatatableDomFooter({information, length, pagination}) {
         : ''
 }
 
-function getAppropriateDom({needsFullDomOverride, needsPartialDomOverride, needsMinimalDomOverride, needsPaginationRemoval, removeInfo}) {
+export function getAppropriateDom({needsFullDomOverride, needsPartialDomOverride, needsMinimalDomOverride, needsPaginationRemoval, removeInfo}) {
     const domFooter = createDatatableDomFooter({
         information: !removeInfo,
         length: true,
@@ -163,7 +163,7 @@ function getAppropriateDom({needsFullDomOverride, needsPartialDomOverride, needs
                 : dtDefaultValue;
 }
 
-function getAppropriateRowCallback({needsColor, color, dataToCheck, needsRowClickAction, callback}) {
+export function getAppropriateRowCallback({needsColor, color, dataToCheck, needsRowClickAction, callback}) {
     return function (row, data) {
         if (needsColor
             && (data[dataToCheck] === true || data[dataToCheck] && data[dataToCheck].toLowerCase() !== 'non')) {
@@ -178,7 +178,7 @@ function getAppropriateRowCallback({needsColor, color, dataToCheck, needsRowClic
     }
 }
 
-function overrideSearch($input, table, callback = null) {
+export function overrideSearch($input, table, callback = null) {
     $input.off();
     $input.on('keyup', function (e) {
         if (e.key === 'Enter') {
@@ -193,7 +193,7 @@ function overrideSearch($input, table, callback = null) {
     $input.attr('placeholder', 'Entrée pour valider');
 }
 
-function datatableDrawCallback({response, needsSearchOverride, needsColumnHide, needsColumnShow, needsResize, needsEmplacementSearchOverride, callback, table, $tableDom}) {
+export function datatableDrawCallback({response, needsSearchOverride, needsColumnHide, needsColumnShow, needsResize, needsEmplacementSearchOverride, callback, table, $tableDom}) {
     let $searchInputContainer = $tableDom.parents('.dataTables_wrapper ').find('.dataTables_filter');
     let $searchInput = $searchInputContainer.find('input');
 
@@ -215,7 +215,7 @@ function datatableDrawCallback({response, needsSearchOverride, needsColumnHide, 
     renderDtInfo($(table.table().container()));
 }
 
-function moveSearchInputToHeader($searchInputContainer) {
+export function moveSearchInputToHeader($searchInputContainer) {
     const $datatableCard = $searchInputContainer.parents('.wii-page-card');
     const $searchInput = $searchInputContainer.find('input');
     const $searchInputContainerCol = $searchInputContainer.parent();
@@ -236,7 +236,7 @@ function moveSearchInputToHeader($searchInputContainer) {
     }
 }
 
-function initDataTable(dtId, options) {
+export function initDataTable(dtId, options) {
     const domConfig = options.domConfig;
     const rowConfig = options.rowConfig;
     const drawConfig = options.drawConfig;
@@ -327,13 +327,13 @@ function initDataTable(dtId, options) {
     return datatableToReturn;
 }
 
-function renderDtInfo($table) {
+export function renderDtInfo($table) {
     $table
         .find('.dataTables_info')
         .addClass('pt-0');
 }
 
-function overrideSearchSpecifEmplacement($input) {
+export function overrideSearchSpecifEmplacement($input) {
     $input.off();
     $input.on('keyup', function (e) {
         let $printButton = $('.printButton');
@@ -380,7 +380,7 @@ function toggleActiveButton($button, table) {
         .draw();
 }
 
-function initSearchDate(table) {
+export function initSearchDate(table) {
     $.fn.dataTable.ext.search.push(
         function (settings, data) {
             let dateMin = $('#dateMin').val();
@@ -408,13 +408,13 @@ function initSearchDate(table) {
     );
 }
 
-function hideAndShowColumns(columns, table) {
+export function hideAndShowColumns(columns, table) {
     table.columns().every(function (index) {
         this.visible(columns[index].isColumnVisible);
     });
 }
 
-function tableCallback({columns, tableFilter}, table) {
+export function tableCallback({columns, tableFilter}, table) {
     if (columns) {
         hideSpinner($('#spinner'));
         hideAndShowColumns(columns, table);
@@ -424,7 +424,7 @@ function tableCallback({columns, tableFilter}, table) {
     }
 }
 
-function attachDropdownToBodyOnDropdownOpening($table) {
+export function attachDropdownToBodyOnDropdownOpening($table) {
     let dropdownMenu;
 
     $table.on('show.bs.dropdown', function (e) {

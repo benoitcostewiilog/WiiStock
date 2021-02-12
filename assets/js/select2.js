@@ -1,5 +1,5 @@
 
-class Select2 {
+export class Select2 {
 
     /**
      * @param $select

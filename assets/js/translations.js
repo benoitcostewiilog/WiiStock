@@ -1,4 +1,6 @@
-class Trans {
+import {TRANSLATIONS} from './generated/translations';
+
+export class Trans {
     static original(key) {
         if(TRANSLATIONS[key]) {
             return TRANSLATIONS[key].original;
