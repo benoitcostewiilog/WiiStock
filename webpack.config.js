@@ -42,6 +42,13 @@ Encore
     .configureBabel((config)=>{
         config.plugins.push('@babel/plugin-proposal-class-properties');
     })
+    .addLoader({
+        test: /\.js$/,
+        loader: 'babel-loader',
+        options: {
+            presets: ['@babel/preset-env']
+        }
+    })
 
     // enables Sass/SCSS support
     .enableSassLoader();

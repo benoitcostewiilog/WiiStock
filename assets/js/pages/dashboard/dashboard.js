@@ -2,7 +2,7 @@ import {renderComponent, ENTRIES_TO_HANDLE} from './render';
 import {wrapLoadingOnActionButton} from "../../loading";
 import {saveAs} from "file-saver";
 import {showBSAlert} from "../../alerts";
-import {displayFormErrors, ProcessForm} from "../../init-modal";
+import {clearFormErrors, displayFormErrors, ProcessForm} from "../../init-modal";
 import {deepCopy} from "../../utils";
 import Routing from '../../routing';
 
@@ -778,19 +778,7 @@ function onComponentSaved($modal) {
     clearFormErrors($modal);
     const {success, errorMessages, $isInvalidElements, data} = processSecondModalForm($modal);
     if(success) {
-        const rowIndex = data.rowIndex;
-        const columnIndex = data.columnIndex;
-        const meterKey = data.meterKey;
-        const componentType = data.componentType;
-        const cellIndex = data.cellIndex;
-        const template = data.template;
-        const config = Object.assign({}, data);
-        delete config.rowIndex;
-        delete config.columnIndex;
-        delete config.meterKey;
-        delete config.componentType;
-        delete config.cellIndex;
-        delete config.template;
+        const {rowIndex, columnIndex, cellIndex, meterKey, template, componentType, ...config} = data;
 
         editComponent(convertIndex(rowIndex), convertIndex(columnIndex), convertIndex(cellIndex), {
             config,
@@ -811,7 +799,7 @@ function onComponentSaved($modal) {
 function processSecondModalForm($modal) {
     const meterKey = $modal.find(`input[name="meterKey"]`).val();
 
-    const processFormResult = ProcessForm($modal, null, () => {
+    const {data, ...remaining} = ProcessForm($modal, null, () => {
         if(meterKey === ENTRIES_TO_HANDLE) {
             let previous = null;
             const allFilled = $modal
@@ -846,15 +834,12 @@ function processSecondModalForm($modal) {
             };
         }
     });
-    const data = processFormResult.data;
-    const remaining = Object.assign({}, processFormResult);
-    delete remaining.data;
 
     if(meterKey === ENTRIES_TO_HANDLE && data.segments) {
         data.segments = data.segments.map(clearSegmentHourValues);
     }
 
-    return Object.assign({}, remaining, {data});
+    return {data, ...remaining};
 }
 
 function editComponent(rowIndex, columnIndex, cellIndex, {config, type, meterKey, template = null}) {

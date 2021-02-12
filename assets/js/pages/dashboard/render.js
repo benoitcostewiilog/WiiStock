@@ -126,11 +126,12 @@ export function renderComponent(component, $container, data) {
         const {callback, options} = creators[component.meterKey];
         const $element = callback(
             data,
-            Object.assign({
+            {
                 meterKey: component.meterKey,
                 rowSize: $container.closest('.dashboard-row').data('size'),
-                component: component
-            }, options || {})
+                component,
+                ...(options || {})
+            }
         );
 
         if($element) {
@@ -524,7 +525,7 @@ function createIndicatorElement(data, {meterKey, customContainerClass}) {
         : {};
     const clickableClass = componentLink ? 'pointer' : '';
 
-    return $(element, Object.assign({
+    return $(element, {
         class: `dashboard-box dashboard-box-indicator text-center justify-content-around dashboard-stats-container ${customContainerClass}`,
         html: [
             createTooltip(tooltip),
@@ -560,8 +561,9 @@ function createIndicatorElement(data, {meterKey, customContainerClass}) {
                     text: !isNaN(Math.abs(delay)) ? renderMillisecondsToDelay(Math.abs(delay), 'display') : delay
                 })
                 : undefined,
-        ].filter(Boolean)
-    }, customAttributes));
+        ].filter(Boolean),
+        ...customAttributes
+    });
 }
 
 

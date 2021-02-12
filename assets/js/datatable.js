@@ -236,19 +236,7 @@ export function moveSearchInputToHeader($searchInputContainer) {
     }
 }
 
-export function initDataTable(dtId, options) {
-    const domConfig = options.domConfig;
-    const rowConfig = options.rowConfig;
-    const drawConfig = options.drawConfig;
-    const initCompleteCallback = options.initCompleteCallback;
-    const hideColumnConfig = options.hideColumnConfig;
-    const config = Object.assign({}, options);
-    delete options.domConfig;
-    delete options.rowConfig;
-    delete options.drawConfig;
-    delete options.initCompleteCallback;
-    delete options.hideColumnConfig;
-
+export function initDataTable(dtId, {domConfig, rowConfig, drawConfig, initCompleteCallback, hideColumnConfig, ...config}) {
     let tooltips = [];
     (config.columns || []).forEach((column, id) => {
         if (column.translated) {
@@ -295,8 +283,8 @@ export function initDataTable(dtId, options) {
         .on('error.dt', function (e, settings, techNote, message) {
             console.log('An error has been reported by DataTables: ', message, e, dtId);
         })
-        .DataTable(Object.assign({
-            fixedColumns:   {
+        .DataTable({
+            fixedColumns: {
                 heightMatch: 'auto'
             },
 
@@ -322,8 +310,9 @@ export function initDataTable(dtId, options) {
                     initCompleteCallback();
                 }
                 attachDropdownToBodyOnDropdownOpening($tableDom);
-            }
-        }, config));
+            },
+            ...config
+        });
     return datatableToReturn;
 }
 
