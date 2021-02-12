@@ -1,27 +1,33 @@
+import Chart from 'chart.js';
+import {renderMillisecondsToDelay} from '../../common'
+import {initDataTable} from '../../datatable'
+import {MODE_EDIT, getDashboardMode, MODE_EXTERNAL} from './dashboard'
+import {capitalize, deepCopy, mobileCheck} from "../../utils";
+
 let currentChartsFontSize;
 let fontSizeYAxes;
 
-const ONGOING_PACK = 'ongoing_packs';
-const DAILY_ARRIVALS = 'daily_arrivals';
-const LATE_PACKS = 'late_packs';
-const CARRIER_TRACKING = 'carrier_tracking';
-const DAILY_ARRIVALS_AND_PACKS = 'daily_arrivals_and_packs';
-const RECEIPT_ASSOCIATION = 'receipt_association';
-const WEEKLY_ARRIVALS_AND_PACKS = 'weekly_arrivals_and_packs';
-const PENDING_REQUESTS = 'pending_requests';
-const ENTRIES_TO_HANDLE = 'entries_to_handle';
-const PACK_TO_TREAT_FROM = 'pack_to_treat_from';
-const DROP_OFF_DISTRIBUTED_PACKS = 'drop_off_distributed_packs';
-const ARRIVALS_EMERGENCIES_TO_RECEIVE = 'arrivals_emergencies_to_receive';
-const DAILY_ARRIVALS_EMERGENCIES = 'daily_arrivals_emergencies'
-const REQUESTS_TO_TREAT = 'requests_to_treat';
-const ORDERS_TO_TREAT = 'orders_to_treat';
-const DAILY_HANDLING = 'daily_handling';
-const MONETARY_RELIABILITY_GRAPH = 'monetary_reliability_graph';
-const MONETARY_RELIABILITY_INDICATOR = 'monetary_reliability_indicator';
-const ACTIVE_REFERENCE_ALERTS = 'active_reference_alerts';
-const REFERENCE_RELIABILITY = 'reference_reliability';
-const DAILY_DISPATCHES = 'daily_dispatches';
+export const ONGOING_PACK = 'ongoing_packs';
+export const DAILY_ARRIVALS = 'daily_arrivals';
+export const LATE_PACKS = 'late_packs';
+export const CARRIER_TRACKING = 'carrier_tracking';
+export const DAILY_ARRIVALS_AND_PACKS = 'daily_arrivals_and_packs';
+export const RECEIPT_ASSOCIATION = 'receipt_association';
+export const WEEKLY_ARRIVALS_AND_PACKS = 'weekly_arrivals_and_packs';
+export const PENDING_REQUESTS = 'pending_requests';
+export const PACK_TO_TREAT_FROM = 'pack_to_treat_from';
+export const DROP_OFF_DISTRIBUTED_PACKS = 'drop_off_distributed_packs';
+export const ARRIVALS_EMERGENCIES_TO_RECEIVE = 'arrivals_emergencies_to_receive';
+export const DAILY_ARRIVALS_EMERGENCIES = 'daily_arrivals_emergencies'
+export const REQUESTS_TO_TREAT = 'requests_to_treat';
+export const ORDERS_TO_TREAT = 'orders_to_treat';
+export const DAILY_HANDLING = 'daily_handling';
+export const MONETARY_RELIABILITY_GRAPH = 'monetary_reliability_graph';
+export const MONETARY_RELIABILITY_INDICATOR = 'monetary_reliability_indicator';
+export const ACTIVE_REFERENCE_ALERTS = 'active_reference_alerts';
+export const REFERENCE_RELIABILITY = 'reference_reliability';
+export const DAILY_DISPATCHES = 'daily_dispatches';
+export const ENTRIES_TO_HANDLE = 'entries_to_handle';
 
 $(function() {
     Chart.defaults.global.defaultFontFamily = 'Myriad';
@@ -40,7 +46,7 @@ const creators = {
     },
     [DAILY_ARRIVALS]: {
         callback: createChart,
-        arguments: {route: `get_arrival_um_statistics`}
+        options: {route: `get_arrival_um_statistics`}
     },
     [LATE_PACKS]: {
         callback: createLatePacksElement
@@ -50,7 +56,7 @@ const creators = {
     },
     [RECEIPT_ASSOCIATION]: {
         callback: createChart,
-        arguments: {route: `get_asso_recep_statistics`}
+        options: {route: `get_asso_recep_statistics`}
     },
     [WEEKLY_ARRIVALS_AND_PACKS]: {
         callback: createChart
@@ -63,7 +69,7 @@ const creators = {
     },
     [PACK_TO_TREAT_FROM]: {
         callback: createChart,
-        arguments: {cssClass: 'multiple'}
+        options: {cssClass: 'multiple'}
     },
     [DROP_OFF_DISTRIBUTED_PACKS]: {
         callback: createChart
@@ -82,7 +88,7 @@ const creators = {
     },
     [MONETARY_RELIABILITY_GRAPH]: {
         callback: createChart,
-        arguments: {
+        options: {
             hideRange: true
         }
     },
@@ -110,21 +116,21 @@ const creators = {
  * @param data
  * @return {boolean}
  */
-function renderComponent(component, $container, data) {
+export function renderComponent(component, $container, data) {
     $container.empty();
 
     if(!creators[component.meterKey]) {
         console.error(`No creator function for ${component.meterKey} key.`);
         return false;
     } else {
-        const {callback, arguments} = creators[component.meterKey];
+        const {callback, options} = creators[component.meterKey];
         const $element = callback(
             data,
             Object.assign({
                 meterKey: component.meterKey,
                 rowSize: $container.closest('.dashboard-row').data('size'),
                 component: component
-            }, arguments || {})
+            }, options || {})
         );
 
         if($element) {
@@ -156,10 +162,31 @@ function renderComponent(component, $container, data) {
     }
 }
 
+
+export function createAndUpdateSimpleChart($canvas, chart, data, forceCreation = false, disableAnimation = false) {
+    if(forceCreation || !chart) {
+        chart = newChart($canvas, false, disableAnimation);
+    }
+    if(data) {
+        updateSimpleChartData(
+            chart,
+            data.chartData || data,
+            data.label || '',
+            data.stack || false,
+            {
+                data: data.subCounters,
+                label: data.subLabel
+            }
+        );
+    }
+
+    return chart;
+}
+
 function createTooltip(text) {
     const trimmedText = (text || "").trim();
-    if (mode === MODE_EDIT
-        || mode === MODE_EXTERNAL
+    if (getDashboardMode() === MODE_EDIT
+        || getDashboardMode() === MODE_EXTERNAL
         || !trimmedText) {
         return ``;
     } else {
@@ -217,8 +244,8 @@ function renderRequest(request, rowSize) {
         6: 'col-12',
     }
     const cardSize = cardSizeRowSizeMatching[rowSize] || defaultCardSize;
-    const link = mode !== MODE_EDIT ? `href="${request.href}" onclick="${onCardClick}"` : ``;
-    const cursor = mode === MODE_EDIT ? `cursor-default` : ``;
+    const link = getDashboardMode() !== MODE_EDIT ? `href="${request.href}" onclick="${onCardClick}"` : ``;
+    const cursor = getDashboardMode() === MODE_EDIT ? `cursor-default` : ``;
 
     return `
         <div class="d-flex ${cardSize} p-1">
@@ -244,7 +271,7 @@ function renderRequest(request, rowSize) {
                             </div>
                         </div>
                         <div class="col-12">
-                            <p>${$.capitalize(request.requestStatus)}</p>
+                            <p>${capitalize(request.requestStatus)}</p>
                         </div>
                     </div>
                 </div>
@@ -288,7 +315,7 @@ function createEntriesToHandleElement(data, {meterKey}) {
 
     const $graph = createChart(data, {route: null, variable: null, cssClass: 'multiple'});
     const $firstComponent = $('<div/>', {
-        class: `w-100 pb-1 flex-fill dashboard-component h-100 mx-0 mt-0`,
+        class: `w-100 pb-1 flex-fill dashboard-component h-100 mx-0 mt-0 overflow-hidden`,
         html: createIndicatorElement(
             {
                 title: 'Nombre de lignes à traiter',
@@ -303,7 +330,7 @@ function createEntriesToHandleElement(data, {meterKey}) {
         )
     });
     const $secondComponent = $('<div/>', {
-        class: `w-100 pt-1 flex-fill dashboard-component h-100 mx-0 mb-0`,
+        class: `w-100 pt-1 flex-fill dashboard-component h-100 mx-0 mb-0 overflow-hidden`,
         html: createIndicatorElement(
             {
                 title: 'Prochain emplacement à traiter',
@@ -319,7 +346,7 @@ function createEntriesToHandleElement(data, {meterKey}) {
     });
 
     let $container;
-    if ($.mobileCheck()) {
+    if (mobileCheck()) {
         $container = $('<div/>', {class: 'dashboard-box'});
     }
 
@@ -392,7 +419,7 @@ function createChart(data, {route, cssClass, hideRange} = {route: null, cssClass
         return false;
     }
 
-    const hasRangeButton = (route && !hideRange && mode !== MODE_EDIT && mode !== MODE_EXTERNAL);
+    const hasRangeButton = (route && !hideRange && getDashboardMode() !== MODE_EDIT && getDashboardMode() !== MODE_EXTERNAL);
 
     const dashboardBoxContainerClass = hasRangeButton
         ? 'dashboard-box-container-title-content'
@@ -402,20 +429,36 @@ function createChart(data, {route, cssClass, hideRange} = {route: null, cssClass
 
 
     const pagination = hasRangeButton
-        ? `
-            <div class="range-buttons">
-                <div class="arrow-chart"
-                     onclick="drawChartWithHisto($(this), '${route}', 'before')">
-                    <i class="fas fa-chevron-left pointer"></i>
-                </div>
-                <span class="firstDay" data-day="${data.firstDayData}">${data.firstDay}</span> -
-                <span class="lastDay" data-day="${data.lastDayData}">${data.lastDay}</span>
-                <div class="arrow-chart"
-                     onclick="drawChartWithHisto($(this), '${route}', 'after')">
-                    <i class="fas fa-chevron-right pointer"></i>
-                </div>
-            </div>
-        `
+        ? $(`<div/>`, {
+            class: 'range-buttons',
+            html: [
+                $(`<div/>`, {
+                    class: 'arrow-chart',
+                    click: ({target}) => {
+                        drawChartWithHisto($(target), '${route}', 'before')
+                    },
+                    html: `<i class="fas fa-chevron-left pointer"></i>`
+                }),
+                $(`<span/>`, {
+                    class: 'firstDay',
+                    'data-day': data.firstDayData,
+                    text: data.firstDay
+                }),
+                ' - ',
+                $(`<span/>`, {
+                    class: 'lastDay',
+                    'data-day': data.lastDayData,
+                    text: data.lastDay
+                }),
+                $(`<div/>`, {
+                    class: 'arrow-chart',
+                    click: ({target}) => {
+                        drawChartWithHisto($(target), '${route}', 'after')
+                    },
+                    html: `<i class="fas fa-chevron-right pointer"></i>`
+                })
+            ]
+        })
         : '';
 
 
@@ -552,32 +595,11 @@ function createIndicatorElement(data, {meterKey, customContainerClass}) {
 //ne supprimez pas et mettez pas les fonction de creation des composants en dessous
 
 
-//fonctions à sortir dans un autre fichier
 
-function drawChartWithHisto($button, path, beforeAfter = 'now') {
-    let $dashboardBox = $button.closest('.dashboard-box');
-    let $rangeBtns = $dashboardBox.find('.range-buttons');
-    let $firstDay = $rangeBtns.find('.firstDay');
-    let $lastDay = $rangeBtns.find('.lastDay');
-    let $canvas = $dashboardBox.find('canvas');
-    let params = {
-        'firstDay': $firstDay.data('day'),
-        'lastDay': $lastDay.data('day'),
-        'beforeAfter': beforeAfter
-    };
-    $.get(Routing.generate(path), params, function(data) {
-        $firstDay.text(data.firstDay);
-        $firstDay.data('day', data.firstDayData);
-        $lastDay.text(data.lastDay);
-        $lastDay.data('day', data.lastDayData);
-        $rangeBtns.removeClass('d-none');
-
-        createAndUpdateSimpleChart($canvas, null, data);
-    });
-}
-
-
-function updateSimpleChartData(chart, data, label, stack = false,
+function updateSimpleChartData(chart,
+                               data,
+                               label,
+                               stack = false,
                                {data: subData, label: lineChartLabel} = {data: undefined, label: undefined}) {
     chart.data.datasets = [{data: [], label}];
     chart.data.labels = [];
@@ -607,31 +629,11 @@ function updateSimpleChartData(chart, data, label, stack = false,
         chart.options.scales.yAxes[0].stacked = true;
         chart.options.scales.xAxes[0].stacked = true;
         (data.stack || []).forEach((stack) => {
-            chart.data.datasets.push($.deepCopy(stack));
+            chart.data.datasets.push(deepCopy(stack));
         });
     }
 
     chart.update();
-}
-
-function createAndUpdateSimpleChart($canvas, chart, data, forceCreation = false, disableAnimation = false) {
-    if(forceCreation || !chart) {
-        chart = newChart($canvas, false, disableAnimation);
-    }
-    if(data) {
-        updateSimpleChartData(
-            chart,
-            data.chartData || data,
-            data.label || '',
-            data.stack || false,
-            {
-                data: data.subCounters,
-                label: data.subLabel
-            }
-        );
-    }
-
-    return chart;
 }
 
 function newChart($canvasId, redForLastData = false, disableAnimation = false) {
@@ -815,7 +817,7 @@ function loadLatePacks($table, data) {
             $dataTable._fnScrollDraw();
         }
     };
-    if(mode === MODE_EDIT) {
+    if(getDashboardMode() === MODE_EDIT) {
         datatableColisConfig.data = data.tableData;
     } else {
         datatableColisConfig.ajax = {
@@ -876,4 +878,27 @@ function updateMultipleChartData(chart, data) {
         }
     }
     chart.update();
+}
+
+
+function drawChartWithHisto($button, path, beforeAfter = 'now') {
+    let $dashboardBox = $button.closest('.dashboard-box');
+    let $rangeBtns = $dashboardBox.find('.range-buttons');
+    let $firstDay = $rangeBtns.find('.firstDay');
+    let $lastDay = $rangeBtns.find('.lastDay');
+    let $canvas = $dashboardBox.find('canvas');
+    let params = {
+        'firstDay': $firstDay.data('day'),
+        'lastDay': $lastDay.data('day'),
+        'beforeAfter': beforeAfter
+    };
+    $.get(Routing.generate(path), params, function(data) {
+        $firstDay.text(data.firstDay);
+        $firstDay.data('day', data.firstDayData);
+        $lastDay.text(data.lastDay);
+        $lastDay.data('day', data.lastDayData);
+        $rangeBtns.removeClass('d-none');
+
+        createAndUpdateSimpleChart($canvas, null, data);
+    });
 }

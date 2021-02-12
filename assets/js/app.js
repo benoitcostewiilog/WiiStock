@@ -1,6 +1,5 @@
 import 'bootstrap';
 import 'select2';
-import Chart from 'chart.js';
 import moment from 'moment';
 import 'datatables.net';
 import 'datatables.net-dt/js/dataTables.dataTables';
@@ -19,7 +18,7 @@ import './bootstrap-datetimepicker';
 
 import * as alerts from './alerts';
 import {Select2} from "./select2";
-import * as common from './common';
+import * as common from './common'; // todo REMOVE
 import * as scriptWiilog from './script-wiilog';
 import * as initModal from './init-modal';
 import * as datatable from './datatable';
@@ -38,7 +37,6 @@ importJquery();
 importMoment();
 importQuill();
 importRouting();
-importChart();
 
 ///////////////// Functions
 
@@ -65,10 +63,6 @@ function importJquery() {
     global.$ = global.jQuery = $;
 }
 
-function importChart() {
-    global.Chart = Chart;
-}
-
 function importMoment() {
     global.moment = moment;
 }
@@ -83,25 +77,12 @@ function importQuill() {
 }
 
 function importRouting() {
+    // TODO REMOVE
     const routes = require('../json/generated/routes.json');
     Routing.setRoutingData(routes);
 
     global.Routing = Routing;
 }
-
-jQuery.deepCopy = function(object) {
-    return object !== undefined ? JSON.parse(JSON.stringify(object)) : object;
-};
-
-jQuery.mobileCheck = function() {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-        || window.screen.width <= 992;
-};
-
-jQuery.capitalize = function(string) {
-    if (typeof string !== `string`) return ``;
-    return string.charAt(0).toUpperCase() + string.slice(1);
-};
 
 $(document).ready(() => {
     //logout after session has expired

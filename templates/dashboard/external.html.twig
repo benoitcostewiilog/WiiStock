@@ -19,15 +19,5 @@
 
 {% block javascripts %}
     {{ encore_entry_script_tags('app') }}
-    {{ encore_entry_script_tags('dashboard') }}
-
-    <script src="{{ asset('js/common.js') }}?v={{ web_version }}"></script>
-    <script src="{{ asset('js/datatable.js') }}?v={{ web_version }}"></script>
-
-    <script src="{{ asset('js/pages/dashboard/render.js') }}?v={{ web_version }}"></script>
-    <script src="{{ asset('js/pages/dashboard/settings.js') }}?v={{ web_version }}"></script>
-
-    <script>
-        $(document).ready(() => loadDashboards(MODE_EXTERNAL));
-    </script>
+    {{ encore_entry_script_tags('dashboard-settings') }}
 {% endblock %}

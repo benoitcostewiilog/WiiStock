@@ -1,6 +1,24 @@
-const MODE_EDIT = 0;
-const MODE_DISPLAY = 1;
-const MODE_EXTERNAL = 2;
+import {renderComponent, ENTRIES_TO_HANDLE} from './render';
+import {wrapLoadingOnActionButton} from "../../loading";
+import {saveAs} from "file-saver";
+import {showBSAlert} from "../../alerts";
+import {displayFormErrors, ProcessForm} from "../../init-modal";
+import {deepCopy} from "../../utils";
+import Routing from '../../routing';
+
+export const MODE_EDIT = 0;
+export const MODE_DISPLAY = 1;
+export const MODE_EXTERNAL = 2;
+
+let _mode;
+
+export function setDashboardMode(mode) {
+    _mode = mode;
+}
+
+export function getDashboardMode() {
+    return _mode;
+}
 
 const MAX_NUMBER_ROWS = 6;
 const MAX_COMPONENTS_IN_CELL = 2;
@@ -29,7 +47,6 @@ const MAX_NUMBER_PAGES = 8;
 let dashboards = [];
 let currentDashboard = null;
 let somePagesDeleted = false;
-let mode = undefined;
 
 const $addRowButton = $('button.add-row-modal-submit');
 const $dashboard = $('.dashboard');
@@ -45,8 +62,8 @@ $(window).resize(function () {
     }, 100);
 });
 
-function loadDashboards(m) {
-    mode = m;
+export function loadDashboards(mode) {
+    setDashboardMode(mode);
     if(mode === undefined) {
         alert("Configuration invalide");
     }
@@ -72,10 +89,10 @@ function loadDashboards(m) {
 
     $(window).bind('beforeunload', hasEditDashboard);
 
-    if(mode === MODE_DISPLAY || mode === MODE_EXTERNAL) {
+    if(getDashboardMode() === MODE_DISPLAY || getDashboardMode() === MODE_EXTERNAL) {
         // all 5 min
         setInterval(function() {
-            $.get(Routing.generate("dashboards_fetch", {mode}), function(response) {
+            $.get(Routing.generate("dashboards_fetch", {mode: getDashboardMode()}), function(response) {
                 dashboards = JSON.parse(response.dashboards);
                 currentDashboard = dashboards.find(({dashboardIndex: currentDashboardIndex}) => currentDashboardIndex === currentDashboard.dashboardIndex);
 
@@ -90,6 +107,13 @@ function loadDashboards(m) {
         .arrive(".segments-list .segment-hour", function() {
             onSegmentInputChange($(this), true);
         });
+}
+
+global.toggleTreatmentDelay = function ($checkbox) {
+    const $modal = $checkbox.closest('.modal');
+    const $treatmentDelay = $modal.find('[name=treatmentDelay]');
+    $treatmentDelay.val('');
+    $treatmentDelay.prop('disabled', !$checkbox.prop('checked'));
 }
 
 function onArrowNavigation(e) {
@@ -199,7 +223,7 @@ function renderCurrentDashboard() {
             .forEach((row) => $dashboard.append(row));
     }
 
-    if(mode === MODE_DISPLAY || mode === MODE_EXTERNAL) {
+    if(getDashboardMode() === MODE_DISPLAY || getDashboardMode() === MODE_EXTERNAL) {
         $(`.header-title`).html(`Dashboard | <span class="bold">${currentDashboard.name}</span>`);
         document.title = document.title.split('|')[0] + ` | ${currentDashboard.name}`;
     }
@@ -224,7 +248,7 @@ function updateAddRowButton() {
 
 function renderRow(row) {
     const $rowWrapper = $(`<div/>`, {class: `dashboard-row-wrapper`});
-    const flexFill = mode !== MODE_EXTERNAL ? 'flex-fill' : '';
+    const flexFill = getDashboardMode() !== MODE_EXTERNAL ? 'flex-fill' : '';
     const $row = $(`<div/>`, {
         class: `dashboard-row dashboard-row-size-${row.size} ${flexFill}`,
         'data-row-index': `${row.rowIndex}`,
@@ -246,7 +270,7 @@ function renderRow(row) {
                 )
             )) {
             $component = renderCardComponent({
-                component: $.deepCopy(cellComponents[0]),
+                component: deepCopy(cellComponents[0]),
                 columnIndex
             });
         }
@@ -256,7 +280,7 @@ function renderRow(row) {
             for (let cellIndex = 0; cellIndex < cellComponents.length; cellIndex++) {
                 const component = cellComponents[cellIndex];
                 const $cardComponent = renderCardComponent({
-                    component: $.deepCopy(component),
+                    component: deepCopy(component),
                     columnIndex,
                     cellIndex
                 });
@@ -267,7 +291,7 @@ function renderRow(row) {
         $rowWrapper.append($component);
     }
 
-    if(mode === MODE_EDIT) {
+    if(getDashboardMode() === MODE_EDIT) {
         $row.append(`
             <div class="delete-row-container"><i class="fa fa-trash ml-1 delete-row pointer"></i></div>
         `);
@@ -312,7 +336,7 @@ function renderCardComponent({columnIndex, cellIndex, component}) {
                     }));
                 }
 
-                if(mode === MODE_EDIT) {
+                if(getDashboardMode() === MODE_EDIT) {
                     const $editButton = component.template
                         ? $('<div/>', {
                             class: 'dropdown-item pointer',
@@ -347,7 +371,7 @@ function renderCardComponent({columnIndex, cellIndex, component}) {
     }
     else {
         $componentContainer.addClass('empty');
-        if (mode === MODE_EDIT) {
+        if (getDashboardMode() === MODE_EDIT) {
             const isSplitCell = cellIndex !== null;
             const $addComponent = $('<button/>', {
                 class: 'btn btn-light',
@@ -385,7 +409,7 @@ function renderDashboardPagination() {
         .reverse()
         .forEach($item => $pagination.prepend($item));
 
-    if(mode === MODE_EDIT) {
+    if(getDashboardMode() === MODE_EDIT) {
         $(`.dashboard-pagination`).append(`
             <button class="btn btn-primary btn-ripple mx-1"
                     data-toggle="modal"
@@ -420,7 +444,7 @@ function createDashboardSelectorItem(dashboard) {
     });
 
     let $editable = ``;
-    if(mode === MODE_EDIT) {
+    if(getDashboardMode() === MODE_EDIT) {
         const externalRoute = Routing.generate('dashboards_external', {
             token: $(`.dashboards-token`).val(),
         });
@@ -433,10 +457,10 @@ function createDashboardSelectorItem(dashboard) {
                 <div class="dropdown-menu pointer">
                     <a class="dropdown-item rename-dashboard" role="button" data-dashboard-index="${dashboard.dashboardIndex}"
                          data-toggle="modal" data-target="#rename-dashboard-modal">
-                        <i class="fas fa-edit mr-2"></i>Renommer
+                        <i class="fas fa-edit mr-2"></i> Renommer
                     </a>
                     <a class="dropdown-item delete-dashboard" role="button" data-dashboard-index="${dashboard.dashboardIndex}">
-                        <i class="fas fa-trash mr-2"></i>Supprimer
+                        <i class="fas fa-trash mr-2"></i> Supprimer
                     </a>
                     <a class="dropdown-item" href="${externalRoute}#${dashboard.dashboardIndex + 1}" target="_blank">
                         <i class="fas fa-external-link-alt"></i> Dashboard externe
@@ -993,10 +1017,10 @@ function hasEditDashboard() {
                 && rows.some(({updated: rowUpdated, components}) => {
                     components = Object.values(components);
                     return rowUpdated
-                    || (
-                        components
-                        && components.some(({updated: componentUpdated}) => componentUpdated)
-                    )
+                        || (
+                            components
+                            && components.some(({updated: componentUpdated}) => componentUpdated)
+                        )
                 })
             )
         ))
@@ -1219,17 +1243,6 @@ function onEntityChange($select, onInit = false) {
 
     $selectType.trigger('change');
     $selectStatus.trigger('change');
-}
-
-function toggleTreatmentDelay($checkbox) {
-    const $modal = $checkbox.closest('.modal');
-    const $treatmentDelay = $modal.find('[name=treatmentDelay]');
-    $treatmentDelay.val('');
-    if(!$checkbox.prop('checked')) {
-        $treatmentDelay.prop('disabled', true);
-    } else {
-        $treatmentDelay.prop('disabled', false);
-    }
 }
 
 function splitCell() {

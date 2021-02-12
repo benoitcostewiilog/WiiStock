@@ -10,7 +10,9 @@ Encore
     .setOutputPath('public/build/')
     .setPublicPath('/build')
     .addEntry('app', './assets/js/app.js')
-    .addEntry('dashboard', './assets/js/dashboard.js')
+    .addEntry('dashboard-settings', './assets/js/pages/dashboard/settings.js')
+    .addEntry('dashboard-external', './assets/js/pages/dashboard/external.js')
+    .addEntry('dashboard-display', './assets/js/pages/dashboard/display.js')
     .autoProvidejQuery()
 
     // When enabled, Webpack "splits" your files into smaller pieces for greater optimization.
