@@ -89,7 +89,7 @@ function switchPageBasedOnHash() {
 }
 
 function switchPacks() {
-    selectedTab = TAB_GROUPS;
+    selectedTab = TAB_PACKS;
     window.location.hash = HASH_PACKS;
 
     if(!packsTable) {

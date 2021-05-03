@@ -53,7 +53,6 @@ class GroupRepository extends EntityRepository {
 
     public function getByDates(DateTime $dateMin, DateTime $dateMax) {
         $iterator =  $this->createQueryBuilder("grp")
-            ->distinct()
             ->select("grp.code AS code")
             ->addSelect("nat.label AS nature")
             ->addSelect("COUNT(children.id) AS packs")
@@ -62,14 +61,15 @@ class GroupRepository extends EntityRepository {
             ->addSelect("movement.datetime AS lastMvtDate")
             ->addSelect("movement.id AS fromTo")
             ->addSelect("emplacement.label AS location")
-            ->leftJoin("grp.lastTracking", "movement")
+            ->leftJoin("grp.trackingMovements", "movement", "WITH max(movement.date)")
             ->leftJoin("movement.emplacement","emplacement")
             ->leftJoin("grp.nature","nat")
             ->leftJoin("grp.packs","children")
-            ->where("movement.datetime BETWEEN :dateMin AND :dateMax")
-            ->groupBy("grp")
-            ->setParameter("dateMin", $dateMin)
-            ->setParameter("dateMax", $dateMax)
+//            ->where("movement.datetime BETWEEN :dateMin AND :dateMax")
+            ->groupBy("children.code")
+//            ->setParameter("dateMin", $dateMin)
+//            ->setParameter("dateMax", $dateMax)
+            ->distinct()
             ->getQuery()
             ->iterate(null, Query::HYDRATE_ARRAY);
 
