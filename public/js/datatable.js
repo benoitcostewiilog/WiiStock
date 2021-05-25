@@ -163,11 +163,14 @@ function getAppropriateDom({needsFullDomOverride, needsPartialDomOverride, needs
                 : dtDefaultValue;
 }
 
-function getAppropriateRowCallback({needsColor, color, dataToCheck, needsRowClickAction, callback}) {
+function getAppropriateRowCallback({needsColor, classField, color, dataToCheck, needsRowClickAction, callback}) {
     return function (row, data) {
         if (needsColor
             && (data[dataToCheck] === true || data[dataToCheck] && data[dataToCheck].toLowerCase() !== 'non')) {
             $(row).addClass('table-' + color);
+        }
+        if (classField && data[classField]) {
+            $(row).addClass(data[classField]);
         }
         if (needsRowClickAction) {
             initActionOnRow(row);
@@ -193,8 +196,8 @@ function overrideSearch($input, table, callback = null) {
     $input.attr('placeholder', 'Entrée pour valider');
 }
 
-function datatableDrawCallback({response, needsSearchOverride, needsColumnHide, needsColumnShow, needsResize, needsEmplacementSearchOverride, callback, table, $tableDom}) {
-    let $searchInputContainer = $tableDom.parents('.dataTables_wrapper ').find('.dataTables_filter');
+function datatableDrawCallback({response, needsSearchOverride, needsColumnHide, needsColumnShow, needsResize, needsEmplacementSearchOverride, callback, table, $table}) {
+    let $searchInputContainer = $table.parents('.dataTables_wrapper ').find('.dataTables_filter');
     let $searchInput = $searchInputContainer.find('input');
 
     if (needsSearchOverride && $searchInput.length > 0) {
@@ -236,7 +239,19 @@ function moveSearchInputToHeader($searchInputContainer) {
     }
 }
 
-function initDataTable(dtId, {domConfig, rowConfig, drawConfig, initCompleteCallback, hideColumnConfig, ...config}) {
+function initDataTable($table, options) {
+    const domConfig = options.domConfig;
+    const rowConfig = options.rowConfig;
+    const drawConfig = options.drawConfig;
+    const initCompleteCallback = options.initCompleteCallback;
+    const hideColumnConfig = options.hideColumnConfig;
+    const config = Object.assign({}, options);
+    delete options.domConfig;
+    delete options.rowConfig;
+    delete options.drawConfig;
+    delete options.initCompleteCallback;
+    delete options.hideColumnConfig;
+
     let tooltips = [];
     (config.columns || []).forEach((column, id) => {
         if (column.translated) {
@@ -274,16 +289,16 @@ function initDataTable(dtId, {domConfig, rowConfig, drawConfig, initCompleteCall
     }
 
     let datatableToReturn = null;
-    let $tableDom = $('#' + dtId);
-    $tableDom
+    $table = typeof $table === 'string' ? $('#' + $table) : $table;
+    $table
         .addClass('wii-table')
         .addClass('w-100');
 
-    datatableToReturn = $tableDom
+    datatableToReturn = $table
         .on('error.dt', function (e, settings, techNote, message) {
-            console.log('An error has been reported by DataTables: ', message, e, dtId);
+            console.log('An error has been reported by DataTables: ', message, e, $table.attr('id'));
         })
-        .DataTable({
+        .DataTable(Object.assign({
             fixedColumns:   {
                 heightMatch: 'auto'
             },
@@ -296,24 +311,22 @@ function initDataTable(dtId, {domConfig, rowConfig, drawConfig, initCompleteCall
             dom: getAppropriateDom(domConfig || {}),
             rowCallback: getAppropriateRowCallback(rowConfig || {}),
             drawCallback: (response) => {
-                datatableDrawCallback({
+                datatableDrawCallback(Object.assign({
                     table: datatableToReturn,
                     response,
-                    $tableDom,
-                    ...(drawConfig || {})
-                });
+                    $table
+                }, drawConfig || {}));
             },
             initComplete: () => {
-                let $searchInputContainer = $tableDom.parents('.dataTables_wrapper ').find('.dataTables_filter');
+                let $searchInputContainer = $table.parents('.dataTables_wrapper').find('.dataTables_filter');
                 moveSearchInputToHeader($searchInputContainer);
                 tableCallback(hideColumnConfig || {}, datatableToReturn);
                 if (initCompleteCallback) {
                     initCompleteCallback();
                 }
-                attachDropdownToBodyOnDropdownOpening($tableDom);
-            },
-            ...config
-        });
+                attachDropdownToBodyOnDropdownOpening($table);
+            }
+        }, config));
     return datatableToReturn;
 }
 

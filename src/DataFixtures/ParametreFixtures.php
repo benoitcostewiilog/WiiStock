@@ -61,15 +61,18 @@ class ParametreFixtures extends Fixture implements FixtureGroupInterface {
         $globalParameterLabels = [
             ParametrageGlobal::CREATE_DL_AFTER_RECEPTION => [
                 'default' => false,
-                SpecificService::CLIENT_COLLINS => true
+                SpecificService::CLIENT_COLLINS_SOA => true,
+                SpecificService::CLIENT_COLLINS_VERNON => true
             ],
             ParametrageGlobal::CREATE_PREPA_AFTER_DL => [
                 'default' => false,
-                SpecificService::CLIENT_COLLINS => true
+                SpecificService::CLIENT_COLLINS_SOA => true,
+                SpecificService::CLIENT_COLLINS_VERNON => true
             ],
             ParametrageGlobal::INCLUDE_BL_IN_LABEL => [
                 'default' => false,
-                SpecificService::CLIENT_COLLINS => true
+                SpecificService::CLIENT_COLLINS_SOA => true,
+                SpecificService::CLIENT_COLLINS_VERNON => true
             ],
             ParametrageGlobal::REDIRECT_AFTER_NEW_ARRIVAL => [
                 'default' => true,
@@ -167,19 +170,12 @@ class ParametreFixtures extends Fixture implements FixtureGroupInterface {
             ],
             ParametrageGlobal::DEFAULT_LOCATION_RECEPTION => [],
             ParametrageGlobal::DEFAULT_LOCATION_LIVRAISON => [],
-            ParametrageGlobal::DASHBOARD_NATURE_COLIS => [],
-            ParametrageGlobal::DASHBOARD_LIST_NATURES_COLIS => [],
-            ParametrageGlobal::DASHBOARD_LOCATION_DOCK => [],
-            ParametrageGlobal::DASHBOARD_LOCATION_WAITING_CLEARANCE_DOCK => [],
-            ParametrageGlobal::DASHBOARD_LOCATION_WAITING_CLEARANCE_ADMIN => [],
-            ParametrageGlobal::DASHBOARD_LOCATION_AVAILABLE => [],
-            ParametrageGlobal::DASHBOARD_LOCATION_TO_DROP_ZONES => [],
-            ParametrageGlobal::DASHBOARD_LOCATION_LITIGES => [],
-            ParametrageGlobal::DASHBOARD_LOCATION_URGENCES => [],
-            ParametrageGlobal::DASHBOARD_CARRIER_DOCK => [],
             ParametrageGlobal::MVT_DEPOSE_DESTINATION => [],
             ParametrageGlobal::DROP_OFF_LOCATION_IF_CUSTOMS => [],
             ParametrageGlobal::DROP_OFF_LOCATION_IF_EMERGENCY => [],
+            ParametrageGlobal::ARRIVAL_EMERGENCY_TRIGGERING_FIELDS => [
+                "default" => json_encode(["provider", "commande"]),
+            ],
             ParametrageGlobal::LABEL_LOGO => [],
             ParametrageGlobal::EMERGENCY_ICON => [],
             ParametrageGlobal::CUSTOM_ICON => [],
@@ -190,20 +186,31 @@ class ParametreFixtures extends Fixture implements FixtureGroupInterface {
             ParametrageGlobal::KEEP_DISPATCH_PACK_MODAL_OPEN => [
                 "default" => false
             ],
-            ParametrageGlobal::DASHBOARD_PACKAGING_1 => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_2 => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_3 => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_4 => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_5 => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_6 => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_7 => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_8 => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_9 => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_10 => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_RPA => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_KITTING => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_LITIGE => [],
-            ParametrageGlobal::DASHBOARD_PACKAGING_URGENCE => []
+            ParametrageGlobal::DISPATCH_EXPECTED_DATE_COLOR_AFTER => [
+                'default' => null,
+                SpecificService::CLIENT_ARKEMA_SERQUIGNY => '#2b78e4'
+            ],
+            ParametrageGlobal::DISPATCH_EXPECTED_DATE_COLOR_D_DAY => [
+                'default' => null,
+                SpecificService::CLIENT_ARKEMA_SERQUIGNY => '#009e0f'
+            ],
+            ParametrageGlobal::DISPATCH_EXPECTED_DATE_COLOR_BEFORE => [
+                'default' => null,
+                SpecificService::CLIENT_ARKEMA_SERQUIGNY => '#cf2a27'
+            ],
+
+            ParametrageGlobal::HANDLING_EXPECTED_DATE_COLOR_AFTER => [
+                'default' => null,
+                SpecificService::CLIENT_ARKEMA_SERQUIGNY => '#2b78e4'
+            ],
+            ParametrageGlobal::HANDLING_EXPECTED_DATE_COLOR_D_DAY => [
+                'default' => null,
+                SpecificService::CLIENT_ARKEMA_SERQUIGNY => '#009e0f'
+            ],
+            ParametrageGlobal::HANDLING_EXPECTED_DATE_COLOR_BEFORE => [
+                'default' => null,
+                SpecificService::CLIENT_ARKEMA_SERQUIGNY => '#cf2a27'
+            ]
         ];
 
         foreach ($globalParameterLabels as $globalParameterLabel => $values) {

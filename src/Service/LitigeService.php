@@ -7,6 +7,7 @@ use App\Entity\Article;
 use App\Entity\FiltreSup;
 use App\Entity\Litige;
 use App\Entity\Utilisateur;
+use WiiCommon\Helper\Stream;
 use App\Repository\LitigeRepository;
 use Exception;
 use Symfony\Component\Security\Core\Security;
@@ -18,8 +19,7 @@ use Twig\Error\LoaderError;
 use Twig\Error\RuntimeError;
 use Twig\Error\SyntaxError;
 
-class LitigeService
-{
+class LitigeService {
 
     public const CATEGORY_ARRIVAGE = 'un arrivage';
     public const CATEGORY_RECEPTION = 'une réception';
@@ -57,8 +57,7 @@ class LitigeService
                                 MailerService $mailerService,
                                 CSVExportService $CSVExportService,
                                 VisibleColumnService $visibleColumnService,
-                                Security $security)
-    {
+                                Security $security) {
         $this->templating = $templating;
         $this->entityManager = $entityManager;
         $this->translator = $translator;
@@ -75,8 +74,7 @@ class LitigeService
      * @return array
      * @throws Exception
      */
-    public function getDataForDatatable($params = null)
-    {
+    public function getDataForDatatable($params = null) {
 
         $filtreSupRepository = $this->entityManager->getRepository(FiltreSup::class);
         $litigeRepository = $this->entityManager->getRepository(Litige::class);
@@ -105,8 +103,7 @@ class LitigeService
      * @throws RuntimeError
      * @throws SyntaxError
      */
-    public function dataRowLitige($litige)
-    {
+    public function dataRowLitige($litige) {
         $litigeRepository = $this->entityManager->getRepository(Litige::class);
 
         $litigeId = $litige['id'];
@@ -149,7 +146,9 @@ class LitigeService
             'declarant' => $litige['declarantUsername'],
             'command' => $commands,
             'numCommandeBl' => $numerosBL,
-            'buyers' => implode(', ', array_merge($acheteursArrivage, $acheteursReception)),
+            'buyers' => Stream::from($acheteursArrivage, $acheteursReception)
+                ->unique()
+                ->join(", "),
             'provider' => $litige['provider'] ?? '',
             'lastHistoric' => $lastHistoricStr,
             'creationDate' => $litige['creationDate'] ? $litige['creationDate']->format('d/m/Y H:i') : '',
@@ -160,16 +159,14 @@ class LitigeService
         return $row;
     }
 
-    public function getLitigeOrigin(): array
-    {
+    public function getLitigeOrigin(): array {
         return [
             Litige::ORIGIN_ARRIVAGE => $this->translator->trans('arrivage.arrivage'),
             Litige::ORIGIN_RECEPTION => $this->translator->trans('réception.réception')
         ];
     }
 
-    public function sendMailToAcheteursOrDeclarant(Litige $litige, string $category, $isUpdate = false)
-    {
+    public function sendMailToAcheteursOrDeclarant(Litige $litige, string $category, $isUpdate = false) {
         $wantSendToBuyersMailStatusChange = $litige->getStatus()->getSendNotifToBuyer();
         $wantSendToDeclarantMailStatusChange = $litige->getStatus()->getSendNotifToDeclarant();
         $recipients = [];
@@ -187,21 +184,18 @@ class LitigeService
         }
 
         if ($wantSendToDeclarantMailStatusChange && $litige->getDeclarant()) {
-            $mainAndSecondaryEmails = $litige->getDeclarant()->getMainAndSecondaryEmails();
-            if (!empty($mainAndSecondaryEmails)) {
-                array_push($recipients, ...$mainAndSecondaryEmails);
-            }
+            $recipients = array_merge($recipients, $litige->getDeclarant()->getMainAndSecondaryEmails());
         }
 
-        $translatedCategory = $isArrival ? $category : $this->translator->trans('réception.une réception');
-        $title = !$isUpdate
-            ? ('Un litige a été déclaré sur ' . $translatedCategory . ' vous concernant :')
-            : ('Changement de statut d\'un litige sur ' . $translatedCategory . ' vous concernant :');
-        $subject = !$isUpdate
-            ? ('FOLLOW GT // Litige sur ' . $translatedCategory)
-            : 'FOLLOW GT // Changement de statut d\'un litige sur ' . $translatedCategory;
-
         if (!empty($recipients)) {
+            $translatedCategory = $isArrival ? $category : $this->translator->trans('réception.une réception');
+            $title = !$isUpdate
+                ? ('Un litige a été déclaré sur ' . $translatedCategory . ' vous concernant :')
+                : ('Changement de statut d\'un litige sur ' . $translatedCategory . ' vous concernant :');
+            $subject = !$isUpdate
+                ? ('FOLLOW GT // Litige sur ' . $translatedCategory)
+                : 'FOLLOW GT // Changement de statut d\'un litige sur ' . $translatedCategory;
+
             $this->mailerService->sendMail(
                 $subject,
                 $this->templating->render('mails/contents/' . ($isArrival ? 'mailLitigesArrivage' : 'mailLitigesReception') . '.html.twig', [
@@ -212,6 +206,7 @@ class LitigeService
                 $recipients
             );
         }
+
     }
 
     public function getColumnVisibleConfig(Utilisateur $currentUser): array {
@@ -256,7 +251,7 @@ class LitigeService
                     ? $colis->first()->getArrivage()
                     : null;
                 $acheteurs = $arrivage->getAcheteurs()->toArray();
-                $buyersMailsStr = implode('/', array_map(function (Utilisateur $acheteur) {
+                $buyersMailsStr = implode('/', array_map(function(Utilisateur $acheteur) {
                     return $acheteur->getEmail();
                 }, $acheteurs));
 
@@ -285,12 +280,11 @@ class LitigeService
                 }
                 $this->CSVExportService->putLine($handle, $row);
             }
-        }
-        else if ($mode === self::PUT_LINE_RECEPTION) {
+        } else if ($mode === self::PUT_LINE_RECEPTION) {
             $articles = $dispute->getArticles();
             foreach ($articles as $article) {
                 $buyers = $dispute->getBuyers()->toArray();
-                $buyersMailsStr = implode('/', array_map(function (Utilisateur $acheteur) {
+                $buyersMailsStr = implode('/', array_map(function(Utilisateur $acheteur) {
                     return $acheteur->getEmail();
                 }, $buyers));
 
@@ -331,4 +325,5 @@ class LitigeService
             }
         }
     }
+
 }

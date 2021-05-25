@@ -1,8 +1,8 @@
-let tableArticles;
+let tableArticle;
 
 $(function() {
     const transferOriginId = $('#transfer-origin-id').val();
-    Select2.articleReference($('#add-article-reference'), {
+    Select2Old.articleReference($('#add-article-reference'), {
         locationFilter: transferOriginId,
     });
 
@@ -32,11 +32,6 @@ $(function() {
     let submitDeleteArticle = $("#submitDeleteArticle");
     let urlDeleteArticle = Routing.generate('transfer_request_remove_article', true);
     InitModal(modalDeleteArticle, submitDeleteArticle, urlDeleteArticle, {tables: [tableArticle]});
-
-    let $modalEdit = $("#modalEditTransferRequest");
-    let $submitEdit = $("#submitEditTransferRequest");
-    let pathEdit = Routing.generate('transfer_request_edit', true);
-    InitModal($modalEdit, $submitEdit, pathEdit);
 
     let modalDeleteTransfer = $("#modalDeleteTransfer");
     let submitDeleteTransfer = $("#submitDeleteTransfer");

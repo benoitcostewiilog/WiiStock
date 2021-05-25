@@ -9,6 +9,10 @@ let tableAlerteConfig = {
     },
     drawConfig: {
         needsSearchOverride: true,
+        needsResize: true
+    },
+    rowConfig: {
+        classField: 'colorClass'
     },
     columns: [
         { "data": 'actions', 'name': 'actions', 'title': '', 'orderable': false, className: 'noVis'},
@@ -38,7 +42,7 @@ $(function() {
     let path = Routing.generate('filter_get_by_page');
     let params = JSON.stringify(PAGE_ALERTE);
 
-    Select2.user($(".filter-select2.ajax-autocomplete-user"), "Gestionnaires");
+    Select2Old.user($(".filter-select2.ajax-autocomplete-user"), "Gestionnaires");
 
     $.post(path, params, function (data) {
         displayFiltersSup(data);

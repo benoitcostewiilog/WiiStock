@@ -20,8 +20,10 @@ use App\Entity\Reception;
 use App\Entity\ReferenceArticle;
 use App\Entity\Statut;
 use App\Entity\Utilisateur;
+use App\Helper\FormatHelper;
 use DateTime;
 use Exception;
+use Symfony\Component\Form\Form;
 use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Routing\RouterInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -156,23 +158,27 @@ class TrackingMovementService
 
         $rows = [
             'id' => $movement->getId(),
-            'date' => $movement->getDatetime() ? $movement->getDatetime()->format('d/m/Y H:i') : '',
+            'date' => FormatHelper::datetime($movement->getDatetime()),
             'code' => $packCode,
             'origin' => $this->templating->render('mouvement_traca/datatableMvtTracaRowFrom.html.twig', $fromColumnData),
-            'location' => $movement->getEmplacement() ? $movement->getEmplacement()->getLabel() : '',
+            'location' => FormatHelper::location($movement->getEmplacement()),
             'reference' => $movement->getReferenceArticle()
                 ? $movement->getReferenceArticle()->getReference()
                 : ($movement->getArticle()
                     ? $movement->getArticle()->getArticleFournisseur()->getReferenceArticle()->getReference()
-                    : ''),
+                    : ($movement->getPack()->getLastTracking()->getMouvementStock()
+                        ? $movement->getPack()->getLastTracking()->getMouvementStock()->getArticle()->getArticleFournisseur()->getReferenceArticle()->getLibelle()
+                        : '')),
             "label" => $movement->getReferenceArticle()
                 ? $movement->getReferenceArticle()->getLibelle()
                 : ($movement->getArticle()
                     ? $movement->getArticle()->getLabel()
-                    : ''),
-            "quantity" => $movement->getQuantity() ? $movement->getQuantity() : '',
-            "type" => $movement->getType() ? $movement->getType()->getNom() : '',
-            "operator" => $movement->getOperateur() ? $movement->getOperateur()->getUsername() : '',
+                    : ($movement->getPack()->getLastTracking()->getMouvementStock()
+                        ? $movement->getPack()->getLastTracking()->getMouvementStock()->getArticle()->getLabel()
+                        : '')),
+            "quantity" => $movement->getQuantity() ?: '',
+            "type" => FormatHelper::status($movement->getType()),
+            "operator" => FormatHelper::user($movement->getOperateur()),
             "attachments" => $attachments ?? "",
             "actions" => $this->templating->render('mouvement_traca/datatableMvtTracaRow.html.twig', [
                 'mvt' => $movement,
@@ -285,7 +291,7 @@ class TrackingMovementService
             $pack = new Pack();
             $pack
                 ->setQuantity($quantity)
-                ->setCode($codePack);
+                ->setCode(str_replace("    ", " ", $codePack));
             $entityManager->persist($pack);
         }
 
@@ -496,7 +502,7 @@ class TrackingMovementService
 
         $columns = [
             ['name' => 'actions', 'alwaysVisible' => true, 'orderable' => false, 'class' => 'noVis'],
-            ['hiddenTitle' => 'Pièces jointes', 'name' => 'attachments', 'orderable' => false],
+            ['name' => 'attachments', 'alwaysVisible' => true, 'orderable' => false, 'class' => 'noVis'],
             ['title' => 'Issu de', 'name' => 'origin', 'orderable' => false],
             ['title' => 'Date', 'name' => 'date'],
             ['title' => 'mouvement de traçabilité.Colis', 'name' => 'code', 'translated' => true],
@@ -539,5 +545,62 @@ class TrackingMovementService
         );
         $this->persistSubEntities($entityManager, $mouvementDepose);
         $entityManager->persist($mouvementDepose);
+    }
+
+    /**
+     * @param $handle
+     * @param CSVExportService $CSVExportService
+     * @param FreeFieldService $freeFieldService
+     * @param array $movement
+     * @param array $attachement
+     * @param array $freeFieldsConfig
+     */
+    public function putMovementLine($handle,
+                                    CSVExportService $CSVExportService,
+                                    FreeFieldService $freeFieldService,
+                                    array $movement,
+                                    array $attachement,
+                                    array $freeFieldsConfig)
+    {
+
+        $attachementName = $attachement[$movement['id']] ?? ' ' ;
+
+        if(!empty($movement['numeroArrivage'])) {
+           $origine =  'Arrivage-' . $movement['numeroArrivage'];
+        }
+        if(!empty($movement['receptionNumber'])) {
+            $origine = 'Reception-' . $movement['receptionNumber'];
+        }
+        if(!empty($movement['dispatchNumber'])) {
+            $origine = 'Acheminement-' . $movement['dispatchNumber'];
+        }
+        if(!empty($movement['transferNumber'])) {
+            $origine = 'transfert-' . $movement['transferNumber'];
+        }
+
+        $data = [
+            FormatHelper::datetime($movement['datetime']),
+            $movement['code'],
+            $movement['locationLabel'],
+            $movement['quantity'],
+            $movement['typeName'],
+            $movement['operatorUsername'],
+            $movement['commentaire'],
+            $attachementName,
+            $origine ?? ' ',
+            $movement['numeroCommandeListArrivage'] && !empty($movement['numeroCommandeListArrivage'])
+                        ? implode(', ', $movement['numeroCommandeListArrivage'])
+                        : ($movement['orderNumber'] ?: ''),
+            $movement['isUrgent'] ? 'oui' : 'non',
+
+        ];
+
+        foreach ($freeFieldsConfig['freeFieldIds'] as $freeFieldId) {
+            $data[] = $freeFieldService->serializeValue([
+                'typage' => $freeFieldsConfig['freeFieldsIdToTyping'][$freeFieldId],
+                'valeur' => $movement['freeFields'][$freeFieldId] ?? ''
+            ]);
+        }
+        $CSVExportService->putLine($handle, $data);
     }
 }

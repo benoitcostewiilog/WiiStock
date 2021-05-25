@@ -12,10 +12,12 @@ use App\Entity\FiltreSup;
 use App\Entity\ParametrageGlobal;
 use App\Entity\Urgence;
 use App\Entity\Utilisateur;
+use App\Helper\FormatHelper;
 use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Routing\RouterInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Twig\Environment;
 use Twig\Environment as Twig_Environment;
 use Twig\Error\LoaderError;
 use Twig\Error\RuntimeError;
@@ -24,12 +26,7 @@ use Twig\Error\SyntaxError;
 
 class ArrivageDataService
 {
-    private $templating;
-    private $router;
     private $userService;
-    private $security;
-    private $mailerService;
-    private $entityManager;
     private $specificService;
     private $stringService;
     private $translator;
@@ -37,31 +34,38 @@ class ArrivageDataService
     private $fieldsParamService;
     private $visibleColumnService;
 
+    /** @Required */
+    public Environment $templating;
+
+    /** @Required */
+    public RouterInterface $router;
+
+    /** @Required */
+    public Security $security;
+
+    /** @Required */
+    public EntityManagerInterface $entityManager;
+
+    /** @Required */
+    public MailerService $mailerService;
+
+    /** @Required */
+    public UrgenceService $urgenceService;
+
     public function __construct(UserService $userService,
-                                RouterInterface $router,
-                                MailerService $mailerService,
                                 SpecificService $specificService,
                                 StringService $stringService,
                                 FreeFieldService $champLibreService,
                                 FieldsParamService $fieldsParamService,
                                 TranslatorInterface $translator,
-                                Twig_Environment $templating,
-                                EntityManagerInterface $entityManager,
-                                VisibleColumnService $visibleColumnService,
-                                Security $security)
+                                VisibleColumnService $visibleColumnService)
     {
 
-        $this->templating = $templating;
         $this->freeFieldService = $champLibreService;
         $this->fieldsParamService = $fieldsParamService;
         $this->translator = $translator;
         $this->stringService = $stringService;
-        $this->stringService = $stringService;
-        $this->router = $router;
-        $this->entityManager = $entityManager;
         $this->userService = $userService;
-        $this->security = $security;
-        $this->mailerService = $mailerService;
         $this->specificService = $specificService;
         $this->visibleColumnService = $visibleColumnService;
     }
@@ -154,6 +158,7 @@ class ArrivageDataService
             'emergency' => $arrival->getIsUrgent() ? 'oui' : 'non',
             'projectNumber' => $arrival->getProjectNumber() ?? '',
             'businessUnit' => $arrival->getBusinessUnit() ?? '',
+            'dropLocation' => FormatHelper::location($arrival->getDropLocation()),
             'url' => $url,
             'actions' => $this->templating->render(
                 'arrivage/datatableArrivageRow.html.twig',
@@ -173,27 +178,24 @@ class ArrivageDataService
      */
     public function sendArrivalEmails(Arrivage $arrival, array $emergencies = []): void {
         $isUrgentArrival = !empty($emergencies);
-        $finalRecipents = [];
+        $finalRecipients = [];
         if ($isUrgentArrival) {
-            $finalRecipents = array_reduce(
+            $finalRecipients = array_reduce(
                 $emergencies,
                 function (array $carry, Urgence $emergency) {
-                    $emails = $emergency->getBuyer()->getMainAndSecondaryEmails();
-                    foreach ($emails as $email) {
-                        if (!in_array($email, $carry)) {
-                            $carry[] = $email;
-                        }
-                    }
+                    $buyer = $emergency->getBuyer();
+                    $buyerId = $buyer->getId();
+                    $carry[$buyerId] = $buyer;
                     return $carry;
                 },
                 []
             );
         } else if ($arrival->getDestinataire()) {
             $recipient = $arrival->getDestinataire();
-            $finalRecipents = $recipient ? $recipient->getMainAndSecondaryEmails() : [];
+            $finalRecipients = $recipient ? [$recipient] : [];
         }
 
-        if (!empty($finalRecipents)) {
+        if (!empty($finalRecipients)) {
             $title = 'Arrivage reçu : ' . $arrival->getNumeroArrivage() . ', le ' . $arrival->getDate()->format('d/m/Y à H:i');
 
             $freeFields = $this->freeFieldService->getFilledFreeFieldArray(
@@ -216,7 +218,7 @@ class ArrivageDataService
                         'urlSuffix' => $this->router->generate("arrivage_show", ["id" => $arrival->getId()])
                     ]
                 ),
-                $finalRecipents
+                $finalRecipients
             );
         }
     }
@@ -323,9 +325,8 @@ class ArrivageDataService
             $urgenceRepository = $this->entityManager->getRepository(Urgence::class);
 
             foreach ($numeroCommandeList as $numeroCommande) {
-                $urgencesMatching = $urgenceRepository->findUrgencesMatching(
-                    $arrival->getDate(),
-                    $arrival->getFournisseur(),
+                $urgencesMatching = $this->urgenceService->matchingEmergencies(
+                    $arrival,
                     $numeroCommande,
                     null,
                     $isSEDCurrentClient
@@ -366,6 +367,7 @@ class ArrivageDataService
         $status = $arrivage->getStatut();
         $type = $arrivage->getType();
         $destinataire = $arrivage->getDestinataire();
+        $dropLocation = $arrivage->getDropLocation();
         $buyers = $arrivage->getAcheteurs();
         $comment = $arrivage->getCommentaire();
         $attachments = $arrivage->getAttachments();
@@ -390,6 +392,11 @@ class ArrivageDataService
                 'label' => 'Fournisseur',
                 'value' => $provider ? $provider->getNom() : '',
                 'show' => [ 'fieldName' => 'fournisseur' ]
+            ],
+            [
+                'label' => 'Emplacement de dépose',
+                'value' => $dropLocation ? $dropLocation->getLabel() : '',
+                'show' => [ 'fieldName' => FieldsParam::FIELD_CODE_DROP_LOCATION_ARRIVAGE ]
             ],
             [
                 'label' => 'Transporteur',
@@ -481,6 +488,7 @@ class ArrivageDataService
 
         $champLibreRepository = $entityManager->getRepository(FreeField::class);
         $categorieCLRepository = $entityManager->getRepository(CategorieCL::class);
+        $fieldsParamRepository = $entityManager->getRepository(FieldsParam::class);
 
         $columnsVisible = $currentUser->getColumnsVisibleForArrivage();
         $categorieCL = $categorieCLRepository->findOneByLabel(CategorieCL::ARRIVAGE);
@@ -508,6 +516,12 @@ class ArrivageDataService
             ['title' => 'Business Unit', 'name' => 'businessUnit'],
         ];
 
+        $arrivalFieldsParam = $fieldsParamRepository->getByEntity(FieldsParam::ENTITY_CODE_ARRIVAGE);
+
+        if ($this->fieldsParamService->isFieldRequired($arrivalFieldsParam, FieldsParam::FIELD_CODE_DROP_LOCATION_ARRIVAGE, 'displayedFormsCreate')
+            || $this->fieldsParamService->isFieldRequired($arrivalFieldsParam, FieldsParam::FIELD_CODE_DROP_LOCATION_ARRIVAGE, 'displayedFormsEdit')) {
+            $columns[] = ['title' => 'Emplacement de dépose', 'name' => 'dropLocation'];
+        }
         return $this->visibleColumnService->getArrayConfig($columns, $freeFields, $columnsVisible);
     }
 
@@ -525,8 +539,9 @@ class ArrivageDataService
         }
         else if ($this->specificService->isCurrentClientNameFunction(SpecificService::CLIENT_SAFRAN_ED) && $arrivage->getDestinataire()) {
             $location = $emplacementRepository->findOneByLabel(SpecificService::ARRIVAGE_SPECIFIQUE_SED_MVT_DEPOSE);
-        }
-        else if($defaultArrivalsLocation = $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::MVT_DEPOSE_DESTINATION)) {
+        } else if ($arrivage->getDropLocation()) {
+            $location = $arrivage->getDropLocation();
+        } else if($defaultArrivalsLocation = $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::MVT_DEPOSE_DESTINATION)) {
             $location = $emplacementRepository->find($defaultArrivalsLocation);
         }
         else {
@@ -534,5 +549,56 @@ class ArrivageDataService
         }
 
         return $location;
+    }
+
+    public function putArrivalLine($handle,
+                                    CSVExportService $csvService,
+                                    FreeFieldService $freeFieldService,
+                                    array $ffConfig,
+                                    array $arrival,
+                                    array $buyersByArrival,
+                                    array $natureLabels,
+                                    array $packs,
+                                    array $fieldsParam) {
+        $id = (int)$arrival['id'];
+
+        $line = [
+            $arrival['numeroArrivage'] ?: '',
+            $arrival['recipientUsername'] ?: '',
+            $arrival['fournisseurName'] ?: '',
+            $arrival['transporteurLabel'] ?: '',
+            (!empty($arrival['chauffeurFirstname']) && !empty($arrival['chauffeurSurname']))
+                ? $arrival['chauffeurFirstname'] . ' ' . $arrival['chauffeurSurname']
+                : ($arrival['chauffeurFirstname'] ?: $arrival['chauffeurSurname'] ?: ''),
+            $arrival['noTracking'] ?: '',
+            !empty($arrival['numeroCommandeList']) ? implode(' / ', $arrival['numeroCommandeList']) : '',
+            $arrival['type'] ?: '',
+            $buyersByArrival[$id] ?? '',
+            $arrival['customs'] ? 'oui' : 'non',
+            $arrival['frozen'] ? 'oui' : 'non',
+            $arrival['statusName'] ?: '',
+            $arrival['commentaire'] ? strip_tags($arrival['commentaire']) : '',
+            $arrival['date'] ? $arrival['date']->format('d/m/Y H:i:s') : '',
+            $arrival['userUsername'] ?: '',
+            $arrival['projectNumber'] ?: '',
+            $arrival['businessUnit'] ?: '',
+        ];
+        if ($this->fieldsParamService->isFieldRequired($fieldsParam, FieldsParam::FIELD_CODE_DROP_LOCATION_ARRIVAGE, 'displayedFormsCreate')
+            || $this->fieldsParamService->isFieldRequired($fieldsParam, FieldsParam::FIELD_CODE_DROP_LOCATION_ARRIVAGE, 'displayedFormsEdit')) {
+            $line[] = $arrival['dropLocation'] ?: '';
+        }
+
+        foreach($natureLabels as $natureLabel) {
+            $line[] = $packs[$id][$natureLabel] ?? 0;
+        }
+
+        foreach($ffConfig["freeFieldIds"] as $freeFieldId) {
+            $line[] = $freeFieldService->serializeValue([
+                "typage" => $ffConfig["freeFieldsIdToTyping"][$freeFieldId],
+                "valeur" => $arrival["freeFields"][$freeFieldId] ?? ""
+            ]);
+        }
+
+        $csvService->putLine($handle, $line);
     }
 }

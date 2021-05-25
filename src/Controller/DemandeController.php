@@ -204,6 +204,7 @@ class DemandeController extends AbstractController
                 $demande
                     ->setUtilisateur($utilisateur)
                     ->setDestination($emplacement)
+                    ->setFilled(true)
                     ->setType($type)
                     ->setCommentaire($data['commentaire']);
                 $em = $this->getDoctrine()->getManager();
@@ -211,6 +212,7 @@ class DemandeController extends AbstractController
                 $champLibreService->manageFreeFields($demande, $data, $entityManager);
                 $em->flush();
                 $response = [
+                    'success' => true,
                     'entete' => $this->renderView('demande/demande-show-header.html.twig', [
                         'demande' => $demande,
                         'modifiable' => ($demande->getStatut()->getNom() === (Demande::STATUT_BROUILLON)),
@@ -305,13 +307,14 @@ class DemandeController extends AbstractController
                 'champsLibres' => $champsLibres,
             ];
         }
+
         return $this->render('demande/index.html.twig', [
             'statuts' => $statutRepository->findByCategorieName(Demande::CATEGORIE),
             'typeChampsLibres' => $typeChampLibre,
             'types' => $types,
             'filterStatus' => $filter,
             'receptionFilter' => $reception,
-            'livraisonLocation' => $globalParamService->getParamLocation(ParametrageGlobal::DEFAULT_LOCATION_LIVRAISON)
+            'defaultDeliveryLocations' => $globalParamService->getDefaultDeliveryLocationsByTypeId($entityManager)
         ]);
     }
 

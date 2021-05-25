@@ -6,10 +6,7 @@ namespace App\Service;
 use App\Entity\CategoryType;
 use App\Entity\DimensionsEtiquettes;
 use App\Entity\Emplacement;
-use App\Entity\LocationCluster;
-use App\Entity\Nature;
 use App\Entity\ParametrageGlobal;
-use App\Entity\Transporteur;
 use App\Entity\Type;
 use App\Repository\CategoryTypeRepository;
 use App\Repository\EmplacementRepository;
@@ -30,10 +27,6 @@ Class GlobalParamService
         $this->em = $em;
     }
 
-	/**
-	 * @param bool $includeNullDimensions
-	 * @return array
-     */
 	public function getDimensionAndTypeBarcodeArray(bool $includeNullDimensions = true) {
         $dimensionsEtiquettesRepository = $this->em->getRepository(DimensionsEtiquettes::class);
         $parametrageGlobalRepository = $this->em->getRepository(ParametrageGlobal::class);
@@ -79,11 +72,6 @@ Class GlobalParamService
         }
     }
 
-    /**
-     * Fonction générale de get d'un emplacement en fonction du label du paramétrage
-     * @param $label
-     * @return array|null
-     */
 	public function getParamLocation(string $label) {
         $parametrageGlobalRepository = $this->em->getRepository(ParametrageGlobal::class);
         $emplacementRepository = $this->em->getRepository(Emplacement::class);
@@ -104,34 +92,6 @@ Class GlobalParamService
         return $resp ?? null;
     }
 
-    public function getDashboardCarrierDock()
-    {
-        $parametrageGlobalRepository = $this->em->getRepository(ParametrageGlobal::class);
-        $transporteurRepository = $this->em->getRepository(Transporteur::class);
-
-        $carriersId = $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::DASHBOARD_CARRIER_DOCK);
-
-        if (!empty($carriersId)) {
-            $ids = $texts = [];
-
-            foreach (explode(',', $carriersId) as $id) {
-                $transporteur = $transporteurRepository->find($id);
-
-                if ($transporteur) {
-                    $ids[] = $id;
-                    $texts[] = $transporteur->getLabel();
-                }
-            }
-
-            $resp = [
-                'id' => implode(',', $ids),
-                'text' => implode(',', $texts)
-            ];
-        }
-
-        return $resp ?? [];
-    }
-
     public function generateScssFile(?ParametrageGlobal $font = null) {
         $projectDir = $this->kernel->getProjectDir();
         $scssFile = $projectDir . '/assets/scss/_customFont.scss';
@@ -147,114 +107,64 @@ Class GlobalParamService
 		file_put_contents($scssFile, "\$mainFont: \"$font\";");
 	}
 
-    /**
-     * @return array
-     */
-	public function getDashboardLocations()
-    {
-        $parametrageGlobalRepository = $this->em->getRepository(ParametrageGlobal::class);
-        $emplacementRepository = $this->em->getRepository(Emplacement::class);
+	public function getDefaultDeliveryLocationsByType(EntityManagerInterface $entityManager): array {
 
-		$paramLabels = [
-			ParametrageGlobal::DASHBOARD_LOCATION_DOCK,
-			ParametrageGlobal::DASHBOARD_LOCATION_WAITING_CLEARANCE_DOCK,
-			ParametrageGlobal::DASHBOARD_LOCATION_WAITING_CLEARANCE_ADMIN,
-			ParametrageGlobal::DASHBOARD_LOCATION_AVAILABLE,
-			ParametrageGlobal::DASHBOARD_LOCATION_LITIGES,
-			ParametrageGlobal::DASHBOARD_LOCATION_URGENCES,
-            ParametrageGlobal::DASHBOARD_PACKAGING_1,
-            ParametrageGlobal::DASHBOARD_PACKAGING_2,
-            ParametrageGlobal::DASHBOARD_PACKAGING_3,
-            ParametrageGlobal::DASHBOARD_PACKAGING_4,
-            ParametrageGlobal::DASHBOARD_PACKAGING_5,
-            ParametrageGlobal::DASHBOARD_PACKAGING_6,
-            ParametrageGlobal::DASHBOARD_PACKAGING_7,
-            ParametrageGlobal::DASHBOARD_PACKAGING_8,
-            ParametrageGlobal::DASHBOARD_PACKAGING_9,
-            ParametrageGlobal::DASHBOARD_PACKAGING_10,
-            ParametrageGlobal::DASHBOARD_PACKAGING_RPA,
-            ParametrageGlobal::DASHBOARD_PACKAGING_LITIGE,
-            ParametrageGlobal::DASHBOARD_PACKAGING_URGENCE,
-            ParametrageGlobal::DASHBOARD_PACKAGING_KITTING
-		];
+        $typeRepository = $entityManager->getRepository(Type::class);
+        $locationRepository = $entityManager->getRepository(Emplacement::class);
+        $parametrageGlobalRepository = $entityManager->getRepository(ParametrageGlobal::class);
 
-		$resp = [];
-		foreach ($paramLabels as $paramLabel) {
-			$locationIds = $parametrageGlobalRepository->getOneParamByLabel($paramLabel);
+        $defaultDeliveryLocationsParam = $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::DEFAULT_LOCATION_LIVRAISON);
+        $defaultDeliveryLocationsIds = json_decode($defaultDeliveryLocationsParam, true);
 
-			if ($locationIds) {
-				$locationIdsArr = explode(',', $locationIds);
-
-				$text = [];
-				foreach ($locationIdsArr as $locationId) {
-					$location = $emplacementRepository->find($locationId);
-					$text[] = $location ? $location->getLabel() : '';
-				}
-
-				$resp[$paramLabel] = [
-					'id' => $locationIds,
-					'text' => implode(',', $text)
-				];
-			} else {
-				$resp[$paramLabel] = ['id' => '', 'text' => ''];
-			}
-		}
-
-		$locationClusterRepository = $this->em->getRepository(LocationCluster::class);
-        $clusterCodes = [
-            LocationCluster::CLUSTER_CODE_ADMIN_DASHBOARD_1,
-            LocationCluster::CLUSTER_CODE_ADMIN_DASHBOARD_2,
-            LocationCluster::CLUSTER_CODE_DOCK_DASHBOARD_DROPZONE,
-            LocationCluster::CLUSTER_CODE_PACKAGING_DSQR,
-            LocationCluster::CLUSTER_CODE_PACKAGING_GT_TARGET,
-            LocationCluster::CLUSTER_CODE_PACKAGING_GT_ORIGIN
-        ];
-
-		foreach ($clusterCodes as $clusterCode) {
-            $locationCluster = $locationClusterRepository->findOneBy(['code' => $clusterCode]);
-            $resp[$clusterCode] = ['id' => '', 'text' => ''];
-            if($locationCluster) {
-                /** @var Emplacement $location */
-                foreach($locationCluster->getLocations() as $location) {
-                    $id = $location->getId();
-                    $text = $location->getLabel();
-                    if(!empty($resp[$clusterCode]['id'])) {
-                        $resp[$clusterCode]['id'] .= ',';
-                    }
-                    if(!empty($resp[$clusterCode]['text'])) {
-                        $resp[$clusterCode]['text'] .= ',';
-                    }
-
-                    $resp[$clusterCode]['id'] .= $id;
-                    $resp[$clusterCode]['text'] .= $text;
-                }
+        $defaultDeliveryLocations = [];
+        foreach ($defaultDeliveryLocationsIds as $typeId => $locationId) {
+            if ($typeId !== 'all' && $typeId) {
+                $type = $typeRepository->find($typeId);
             }
+            if ($locationId) {
+                $location = $locationRepository->find($locationId);
+            }
+
+            $defaultDeliveryLocations[] = [
+                'location' => isset($location)
+                    ? [
+                        'label' => $location->getLabel(),
+                        'id' => $location->getId()
+                    ]
+                    : null,
+                'type' => isset($type)
+                    ? [
+                        'label' => $type->getLabel(),
+                        'id' => $type->getId()
+                    ]
+                    : null,
+            ];
         }
+        return $defaultDeliveryLocations;
+    }
 
-		return $resp;
-	}
+	public function getDefaultDeliveryLocationsByTypeId(EntityManagerInterface $entityManager): array {
 
-	/**
-	 * @return array
-     */
-	public function getDashboardListNatures() {
-        $parametrageGlobalRepository = $this->em->getRepository(ParametrageGlobal::class);
-        $natureRepository = $this->em->getRepository(Nature::class);
+        $locationRepository = $entityManager->getRepository(Emplacement::class);
+        $parametrageGlobalRepository = $entityManager->getRepository(ParametrageGlobal::class);
 
-        $listNatureId = $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::DASHBOARD_LIST_NATURES_COLIS);
+        $defaultDeliveryLocationsParam = $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::DEFAULT_LOCATION_LIVRAISON);
+        $defaultDeliveryLocationsIds = json_decode($defaultDeliveryLocationsParam, true);
 
-		$listNatureIdArray = explode(',', $listNatureId);
-		$resp = [];
+        $defaultDeliveryLocations = [];
+        foreach ($defaultDeliveryLocationsIds as $typeId => $locationId) {
+            if ($locationId) {
+                $location = $locationRepository->find($locationId);
+            }
 
-		foreach ($listNatureIdArray as $natureId) {
-			$nature = $natureRepository->find($natureId);
-
-			if ($nature) {
-				$resp[] = $natureId;
-			}
-		}
-
-		return $resp;
-	}
+            $defaultDeliveryLocations[$typeId] = isset($location)
+                ? [
+                    'label' => $location->getLabel(),
+                    'id' => $location->getId()
+                ]
+                : null;
+        }
+        return $defaultDeliveryLocations;
+    }
 
 }

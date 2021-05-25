@@ -1,7 +1,7 @@
 $(function () {
     initDateTimePicker('#dateMin, #dateMax');
-    Select2.init($('#statut'), 'Statuts');
-    Select2.user($('.filters .ajax-autocomplete-user'), 'Utilisateurs');
+    Select2Old.init($('#statut'), 'Statuts');
+    Select2Old.user($('.filters .ajax-autocomplete-user'), 'Utilisateurs');
 
     // filtres enregistrés en base pour chaque utilisateur
     let path = Routing.generate('filter_get_by_page');
@@ -31,6 +31,7 @@ let tableImportConfig = {
         {"data": 'updatedEntries', 'title': 'Mises à jour'},
         {"data": 'nbErrors', 'title': "Nombre d'erreurs"},
         {"data": 'user', 'title': 'Utilisateur'},
+        {"data" : 'entity','title' : 'Type de données importées'},
     ],
     rowConfig: {
         needsRowClickAction: true
@@ -94,7 +95,9 @@ function displaySecondModal(data) {
             }
         );
 
-        updateOptions($(".import-options"));
+        $(".import-options").each(function() {
+            updateOptions($(this));
+        });
     }
 }
 
@@ -147,7 +150,8 @@ function displayConfirmationModal(importId, data) {
     $submitNewImport.off();
 
     $submitNewImport.click(() => {
-        launchImport(importId);
+        wrapLoadingOnActionButton($submitNewImport, () => launchImport(importId));
+
     });
 }
 
@@ -219,7 +223,7 @@ function launchImport(importId, force = false) {
             force: Number(Boolean(force))
         };
 
-        $.post(Routing.generate('import_launch'), params, (resp) => {
+        return $.post(Routing.generate('import_launch'), params, (resp) => {
             if (!force) {
                 $modalNewImport.modal('hide');
             }
@@ -230,6 +234,7 @@ function launchImport(importId, force = false) {
         });
     } else {
         showBSAlert('Une erreur est survenue lors du lancement de votre import. Veuillez recharger la page et réessayer.', 'danger');
+        return new Promise(() => {});
     }
 }
 
@@ -244,7 +249,7 @@ function importTemplateChanged($dataTypeImport = null) {
         REF: {label: 'références', url: `${templateDirectory}/modele-import-references.csv`},
         FOU: {label: 'fournisseurs', url: `${templateDirectory}/modele-import-fournisseurs.csv`},
         ART_FOU: {label: 'articles fournisseurs', url: `${templateDirectory}/modele-import-articles-fournisseurs.csv`},
-        RECEP: {label: 'réceptions', url: `${templateDirectory}/modele-import-réceptions.csv`}
+        RECEP: {label: 'réceptions', url: `${templateDirectory}/modele-import-receptions.csv`}
     };
 
     const valTypeImport = $dataTypeImport ? $dataTypeImport.val() : '';

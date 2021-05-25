@@ -17,6 +17,7 @@ class Statut
     const TREATED = 2;
     const DISPUTE = 3;
     const PARTIAL = 4;
+    const IN_PROGRESS = 5;
 
     /**
      * @ORM\Id()
@@ -111,6 +112,11 @@ class Statut
     private $sendNotifToBuyer;
 
     /**
+     * @ORM\Column(type="boolean", nullable=true, options={"default": true})
+     */
+    private $commentNeeded;
+
+    /**
      * @ORM\OneToMany(targetEntity="App\Entity\Arrivage", mappedBy="statut")
      */
     private $arrivages;
@@ -146,10 +152,20 @@ class Statut
     private $needsMobileSync;
 
     /**
+     * @ORM\Column(type="boolean", nullable=true)
+     */
+    private $automaticReceptionCreation;
+
+    /**
      * @var bool
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
     private $defaultForCategory;
+
+    /**
+     * @ORM\OneToMany(targetEntity=PurchaseRequest::class, mappedBy="status")
+     */
+    private ?Collection $purchaseRequests;
 
     public function __construct()
     {
@@ -168,6 +184,7 @@ class Statut
         $this->transferOrders = new ArrayCollection();
 
         $this->defaultForCategory = false;
+        $this->purchaseRequests = new ArrayCollection();
     }
 
     public function getId(): ? int
@@ -201,6 +218,10 @@ class Statut
 
     public function isNotTreated(): ?bool {
         return $this->state === self::NOT_TREATED;
+    }
+
+    public function isInProgress(): ?bool {
+        return $this->state === self::IN_PROGRESS;
     }
 
     public function isDispute(): ?bool {
@@ -622,6 +643,18 @@ class Statut
         return $this;
     }
 
+    public function getCommentNeeded(): ?bool
+    {
+        return $this->commentNeeded;
+    }
+
+    public function setCommentNeeded(?bool $commentNeeded): self
+    {
+        $this->commentNeeded = $commentNeeded;
+
+        return $this;
+    }
+
     /**
      * @return Collection|Arrivage[]
      */
@@ -713,6 +746,18 @@ class Statut
         return $this;
     }
 
+    public function getAutomaticReceptionCreation(): ?bool
+    {
+        return $this->automaticReceptionCreation;
+    }
+
+    public function setAutomaticReceptionCreation(?bool $automaticReceptionCreation): self
+    {
+        $this->automaticReceptionCreation = $automaticReceptionCreation;
+
+        return $this;
+    }
+
     /**
      * @return bool
      */
@@ -742,6 +787,49 @@ class Statut
      */
     public function setState(?int $state): self {
         $this->state = $state;
+        return $this;
+    }
+
+    /**
+     * @return Collection|PurchaseRequest[]
+     */
+    public function getPurchaseRequests(): Collection
+    {
+        return $this->purchaseRequests;
+    }
+
+    public function addPurchaseRequest(PurchaseRequest $purchaseRequest): self
+    {
+        if (!$this->purchaseRequests->contains($purchaseRequest)) {
+            $this->purchaseRequests[] = $purchaseRequest;
+            $purchaseRequest->setStatus($this);
+        }
+
+        return $this;
+    }
+
+    public function removePurchaseRequest(PurchaseRequest $purchaseRequest): self
+    {
+        if ($this->purchaseRequests->removeElement($purchaseRequest)) {
+            // set the owning side to null (unless already changed)
+            if ($purchaseRequest->getStatus() === $this) {
+                $purchaseRequest->setStatus(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function setPurchaseRequest(?array $purchaseRequests): self {
+        foreach($this->getPurchaseRequests()->toArray() as $purchaseRequest) {
+            $this->removePurchaseRequest($purchaseRequest);
+        }
+
+        $this->purchaseRequests = new ArrayCollection();
+        foreach($purchaseRequests as $purchaseRequest) {
+            $this->addPurchaseRequest($purchaseRequest);
+        }
+
         return $this;
     }
 

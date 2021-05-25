@@ -15,6 +15,8 @@ use App\Entity\LitigeHistoric;
 use App\Entity\FieldsParam;
 use App\Entity\CategorieCL;
 use App\Entity\MouvementStock;
+use App\Entity\PurchaseRequest;
+use App\Entity\PurchaseRequestLine;
 use App\Entity\TrackingMovement;
 use App\Entity\ParametrageGlobal;
 use App\Entity\Attachment;
@@ -31,8 +33,8 @@ use App\Entity\Reception;
 use App\Entity\ReceptionReferenceArticle;
 use App\Entity\CategoryType;
 use App\Exceptions\NegativeQuantityException;
-use App\Repository\TransporteurRepository;
 
+use App\Helper\FormatHelper;
 use App\Service\CSVExportService;
 use App\Service\DemandeLivraisonService;
 use App\Service\GlobalParamService;
@@ -346,7 +348,8 @@ class ReceptionController extends AbstractController {
                 return $this->redirectToRoute('access_denied');
             }
 
-            $data = $this->receptionService->getDataForDatatable($this->getUser(), $request->request);
+            $purchaseRequestFilter = $request->request->get('purchaseRequestFilter');
+            $data = $this->receptionService->getDataForDatatable($this->getUser(), $request->request, $purchaseRequestFilter);
 
             $fieldsParamRepository = $entityManager->getRepository(FieldsParam::class);
             $fieldsParam = $fieldsParamRepository->getHiddenByEntity(FieldsParam::ENTITY_CODE_RECEPTION);
@@ -429,16 +432,22 @@ class ReceptionController extends AbstractController {
     }
 
     /**
-     * @Route("/", name="reception_index", methods={"GET", "POST"}, options={"expose"=true})
-     * @param EntityManagerInterface $entityManager
-     * @return Response
-     * @throws NonUniqueResultException
+     * @Route("/liste/{purchaseRequest}", name="reception_index", methods={"GET", "POST"}, options={"expose"=true})
      */
-    public function index(EntityManagerInterface $entityManager): Response {
-        if(!$this->userService->hasRightFunction(Menu::ORDRE, Action::DISPLAY_RECE)) {
+    public function index(EntityManagerInterface $entityManager,
+                          PurchaseRequest $purchaseRequest = null): Response
+    {
+        if (!$this->userService->hasRightFunction(Menu::ORDRE, Action::DISPLAY_RECE)) {
             return $this->redirectToRoute('access_denied');
         }
 
+        $purchaseRequestLinesOrderNumbers = [];
+        if ($purchaseRequest) {
+            $purchaseRequestLinesOrderNumbers = $purchaseRequest->getPurchaseRequestLines()
+                ->map(function (PurchaseRequestLine $purchaseRequestLine) {
+                    return $purchaseRequestLine->getOrderNumber();
+                })->toArray();
+        }
         $typeRepository = $entityManager->getRepository(Type::class);
         $statutRepository = $entityManager->getRepository(Statut::class);
         $champLibreRepository = $entityManager->getRepository(FreeField::class);
@@ -462,7 +471,9 @@ class ReceptionController extends AbstractController {
             'typeChampLibres' => $typeChampLibre,
             'fieldsParam' => $fieldsParam,
             'statuts' => $statutRepository->findByCategorieName(CategorieStatut::RECEPTION),
-            'receptionLocation' => $this->globalParamService->getParamLocation(ParametrageGlobal::DEFAULT_LOCATION_RECEPTION)
+            'receptionLocation' => $this->globalParamService->getParamLocation(ParametrageGlobal::DEFAULT_LOCATION_RECEPTION),
+            'purchaseRequestFilter' => $purchaseRequest ? implode(',', $purchaseRequestLinesOrderNumbers) : 0,
+            'purchaseRequest' => $purchaseRequest ? $purchaseRequest->getId() : ''
         ]);
     }
 
@@ -484,22 +495,24 @@ class ReceptionController extends AbstractController {
 
             $reception = $receptionRepository->find($data['receptionId']);
 
-            foreach($reception->getReceptionReferenceArticles() as $receptionArticle) {
-                $entityManager->remove($receptionArticle);
-                $articleRepository->setNullByReception($receptionArticle);
+            if ($reception) {
+                foreach ($reception->getReceptionReferenceArticles() as $receptionArticle) {
+                    $entityManager->remove($receptionArticle);
+                    $articleRepository->setNullByReception($receptionArticle);
+                }
+
+                foreach ($reception->getTrackingMovements() as $receptionMvtTraca) {
+                    $entityManager->remove($receptionMvtTraca);
+                }
+                $entityManager->flush();
+
+                $entityManager->remove($reception);
+                $entityManager->flush();
             }
 
-            foreach($reception->getTrackingMovements() as $receptionMvtTraca) {
-                $entityManager->remove($receptionMvtTraca);
-            }
-            $entityManager->flush();
-
-            $entityManager->remove($reception);
-            $entityManager->flush();
-            $data = [
+            return $this->json([
                 "redirect" => $this->generateUrl('reception_index')
-            ];
-            return new JsonResponse($data);
+            ]);
         }
         throw new BadRequestHttpException();
     }
@@ -925,7 +938,7 @@ class ReceptionController extends AbstractController {
             'utilisateurs' => $utilisateurRepository->getIdAndLibelleBySearch(''),
             'typeChampsLibres' => $typeChampLibreDL,
             'createDL' => $createDL ? $createDL->getValue() : false,
-            'livraisonLocation' => $globalParamService->getParamLocation(ParametrageGlobal::DEFAULT_LOCATION_LIVRAISON),
+            'defaultDeliveryLocations' => $globalParamService->getDefaultDeliveryLocationsByTypeId($entityManager),
             'defaultDisputeStatusId' => $defaultDisputeStatus[0] ?? null,
             'needsCurrentUser' => $needsCurrentUser,
             'detailsHeader' => $receptionService->createHeaderDetailsConfig($reception)
@@ -1741,7 +1754,8 @@ class ReceptionController extends AbstractController {
                 'quantité à recevoir',
                 'quantité reçue',
                 'emplacement de stockage',
-                'urgent',
+                'réception urgente',
+                'référence urgente',
                 'destinataire',
                 'référence',
                 'libellé',
@@ -1808,8 +1822,8 @@ class ReceptionController extends AbstractController {
             $reception['providerName'] ?: '',
             $reception['userUsername'] ?: '',
             $reception['statusName'] ?: '',
-            $reception['date'] ? $reception['date']->format('d/m/Y H:i') : '',
-            $reception['dateFinReception'] ? $reception['dateFinReception']->format('d/m/Y H:i') : '',
+            FormatHelper::datetime($reception['date']),
+            FormatHelper::datetime($reception['dateFinReception']),
             $reception['commentaire'] ? strip_tags($reception['commentaire']) : '',
             $reception['receptionRefArticleQuantiteAR'] ?: '',
             (!$reception['referenceArticleId'] && !$reception['articleId']
@@ -1817,7 +1831,8 @@ class ReceptionController extends AbstractController {
                 : ($reception['receptionRefArticleQuantite']
                     ?: 0)),
             $reception['storageLocation'] ?: '',
-            $reception['emergency'] ? 'oui' : 'non'
+            $reception['receptionEmergency'] ? 'oui' : 'non',
+            $reception['referenceEmergency'] ? 'oui' : 'non'
         ];
     }
 
@@ -2077,16 +2092,16 @@ class ReceptionController extends AbstractController {
                 $userThatTriggeredEmergency = $ref->getUserThatTriggeredEmergency();
                 if($userThatTriggeredEmergency) {
                     if(isset($demande) && $demande->getUtilisateur()) {
-                        $destinataires = array_merge(
-                            $userThatTriggeredEmergency->getMainAndSecondaryEmails(),
-                            $demande->getUtilisateur()->getMainAndSecondaryEmails()
-                        );
+                        $destinataires = [
+                            $userThatTriggeredEmergency,
+                            $demande->getUtilisateur()
+                        ];
                     } else {
-                        $destinataires = $userThatTriggeredEmergency->getMainAndSecondaryEmails();
+                        $destinataires = [$userThatTriggeredEmergency];
                     }
                 } else {
                     if(isset($demande) && $demande->getUtilisateur()) {
-                        $destinataires = $demande->getUtilisateur()->getMainAndSecondaryEmails();
+                        $destinataires = [$demande->getUtilisateur()];
                     }
                 }
 
@@ -2122,7 +2137,7 @@ class ReceptionController extends AbstractController {
                             . $nowDate->format('d/m/Y \à H:i')
                             . '.',
                     ]),
-                    $demande->getUtilisateur()->getMainAndSecondaryEmails()
+                    $demande->getUtilisateur()
                 );
             }
             $entityManager->flush();

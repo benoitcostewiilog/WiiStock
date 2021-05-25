@@ -3,7 +3,6 @@
 namespace App\Repository;
 
 use App\Entity\Emplacement;
-use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
@@ -18,12 +17,10 @@ class EmplacementRepository extends EntityRepository
 {
 
     private const DtToDbLabels = [
-        'Nom' => 'label',
-        'Description' => 'description',
-        'Point de livraison' => 'isDeliveryPoint',
-        'Délai maximum' => 'dateMaxTime',
-        'Actif / Inactif' => 'isActive',
-        'allowed-natures' => 'allowed-natures',
+        'name' => 'label',
+        'deliveryPoint' => 'isDeliveryPoint',
+        'maxDelay' => 'dateMaxTime',
+        'active' => 'isActive',
     ];
 
     public function getLocationsArray()
@@ -111,6 +108,23 @@ class EmplacementRepository extends EntityRepository
         return $query->execute();
     }
 
+    public function getLocationsByType($type, $search) {
+        $qb = $this->createQueryBuilder('location');
+
+        $qb->select('location.id AS id')
+            ->addSelect('location.label AS text')
+            ->andWhere('location.label LIKE :search')
+            ->setParameter('search', '%' . str_replace('_', '\_', $search) . '%');
+
+        if ($type) {
+            $qb
+                ->andWhere('(:type MEMBER OF location.allowedDeliveryTypes) OR (:type MEMBER OF location.allowedCollectTypes)')
+                ->setParameter('type', $type);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
     /**
      * @param null $params
      * @param false $excludeInactive
@@ -193,5 +207,16 @@ class EmplacementRepository extends EntityRepository
             ORDER BY nb DESC"
         );
         return $query->execute();
+    }
+
+    public function getLocationByType($type)
+    {
+        $qb = $this->createQueryBuilder('location');
+
+        $qb->select('location.id AS id')
+            ->addSelect('location.label AS text')
+            ->where('(:type MEMBER OF location.allowedDeliveryTypes)')
+            ->setParameter('type', $type);
+        return $qb->getQuery()->getResult();
     }
 }

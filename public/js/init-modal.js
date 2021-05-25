@@ -23,7 +23,7 @@ function InitModal($modal, $submit, path, options = {}) {
     if(options.clearOnClose) {
         $modal.on('hidden.bs.modal', function () {
             clearModal($modal);
-            clearFormErrors();
+            clearFormErrors($modal);
         });
     }
 
@@ -99,7 +99,7 @@ function SubmitAction($modal,
 function processSubmitAction($modal,
                              $submit,
                              path,
-                             {tables, keepModal, keepForm, validator} = {}) {
+                             {tables, keepModal, keepForm, validator, headerCallback} = {}) {
     const isAttachmentForm = $modal.find('input[name="isAttachmentForm"]').val() === '1';
     const {success, errorMessages, $isInvalidElements, data} = ProcessForm($modal, isAttachmentForm, validator);
     if (success) {
@@ -108,7 +108,6 @@ function processSubmitAction($modal,
             : JSON.stringify(data);
 
         $submit.pushLoader('white');
-
         // launch ajax request
         return $
             .ajax({
@@ -122,7 +121,6 @@ function processSubmitAction($modal,
             })
             .then((data) => {
                 $submit.popLoader();
-
                 if (data.success === false) {
                     displayFormErrors($modal, {
                         $isInvalidElements: data.invalidFieldsSelector ? [$(data.invalidFieldsSelector)] : undefined,
@@ -130,7 +128,7 @@ function processSubmitAction($modal,
                     });
                 }
                 else {
-                    const res = treatSubmitActionSuccess($modal, data, tables, keepModal, keepForm);
+                    const res = treatSubmitActionSuccess($modal, data, tables, keepModal, keepForm, headerCallback);
                     if (!res) {
                         return;
                     }
@@ -170,17 +168,11 @@ function clearFormErrors($modal) {
         .empty();
 }
 
-function treatSubmitActionSuccess($modal, data, tables, keepModal, keepForm) {
+function treatSubmitActionSuccess($modal, data, tables, keepModal, keepForm, headerCallback) {
     resetDroppedFiles();
     if (data.redirect && !keepModal) {
         window.location.href = data.redirect;
         return;
-    }
-
-    // pour mise à jour des données d'en-tête après modification
-    if (data.entete) {
-        $('.zone-entete').html(data.entete);
-        $('.zone-entete [data-toggle="popover"]').popover();
     }
 
     if (data.nextModal) {
@@ -194,7 +186,13 @@ function treatSubmitActionSuccess($modal, data, tables, keepModal, keepForm) {
     }
 
     if (!data.nextModal && !keepModal) {
+        $modal.off('hidden.bs.modal');
+        $modal.on('hidden.bs.modal', function () {
+            refreshHeader(data.entete, headerCallback);
+        })
         $modal.modal('hide');
+    } else {
+        refreshHeader(data.entete, headerCallback);
     }
 
     if (!keepForm) {
@@ -204,7 +202,19 @@ function treatSubmitActionSuccess($modal, data, tables, keepModal, keepForm) {
     if (data.msg) {
         showBSAlert(data.msg, 'success');
     }
+
+    // pour mise à jour des données d'en-tête après modification
     return true;
+}
+
+function refreshHeader(entete, headerCallback) {
+    if (entete) {
+        $('.zone-entete').html(entete);
+        $('.zone-entete [data-toggle="popover"]').popover();
+        if (headerCallback) {
+            headerCallback();
+        }
+    }
 }
 
 /**
@@ -225,7 +235,6 @@ function ProcessForm($modal, isAttachmentForm = undefined, validator = undefined
     const dataValidator = validator
         ? (validator($modal) || {success: true, errorMessages: [], $isInvalidElements: []})
         : {success: true, errorMessages: [], $isInvalidElements: []};
-
     return {
         success: (
             dataArrayForm.success
@@ -527,7 +536,6 @@ function processFilesForm($modal, data) {
 }
 
 /**
- *
  * @param $modal jQuery modal
  * @param {Object.<*,*>} data
  * @return {{errorMessages: Array<string>, success: boolean, $isInvalidElements: Array<*>}}
@@ -547,30 +555,28 @@ function processDataArrayForm($modal, data) {
         const $input = $(this);
         const type = $input.attr('type')
         const name = $input.attr('name');
-        if (type === 'number') {
-            const val = Number($input.val());
+        const val = type === 'number' ? Number($input.val()) : $input.val();
+        if ($input.data('id')) {
             if (val) {
                 if (!dataArray[name]) {
                     dataArray[name] = {};
                 }
                 dataArray[name][$input.data('id')] = val;
             }
-
-            if ($input.hasClass('needed-positiv')) {
-                if (!dataArrayNeedPositive[name]) {
-                    dataArrayNeedPositive[name] = 0;
-                }
-                dataArrayNeedPositive[name] += val;
-            }
-        }
-        else {
+        } else {
             const name = $input.attr("name");
-            const val = $input.val();
             if (!dataArray[name]) {
                 dataArray[name] = [];
             }
             dataArray[name].push(val);
         }
+        if (type === 'number' && $input.hasClass('needed-positiv')) {
+            if (!dataArrayNeedPositive[name]) {
+                dataArrayNeedPositive[name] = 0;
+            }
+            dataArrayNeedPositive[name] += val;
+        }
+
     });
 
     const dataArrayNeedPositiveNames = Object.keys(dataArrayNeedPositive).reduce(

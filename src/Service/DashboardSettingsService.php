@@ -13,13 +13,15 @@ use App\Entity\Menu;
 use App\Entity\Nature;
 use App\Entity\TransferRequest;
 use App\Entity\Transporteur;
+use App\Entity\Type;
 use App\Entity\Utilisateur;
 use App\Helper\FormatHelper;
-use App\Helper\Stream;
+use WiiCommon\Helper\Stream;
 use App\Entity\Dashboard as Dashboard;
 use App\Entity\Dashboard\Meter as DashboardMeter;
 use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
+use Symfony\Bundle\MakerBundle\Str;
 use Symfony\Component\Routing\RouterInterface;
 
 class DashboardSettingsService {
@@ -90,6 +92,7 @@ class DashboardSettingsService {
                                         "id" => $component->getId(),
                                         "type" => $type->getId(),
                                         "columnIndex" => $component->getColumnIndex(),
+                                        "direction" => $component->getDirection(),
                                         "cellIndex" => $component->getCellIndex(),
                                         "template" => $type->getTemplate(),
                                         "config" => $config,
@@ -123,9 +126,26 @@ class DashboardSettingsService {
                                     $meter = null): array {
         $values = [];
         $meterKey = $componentType->getMeterKey();
+        Stream::from($config)
+            ->each(function($conf, $key) use (&$values) {
+                if (str_starts_with($key, 'fontSize-')
+                    || str_starts_with($key, 'textColor-')
+                    || str_starts_with($key, 'textBold-')
+                    || str_starts_with($key, 'textItalic-')
+                    || str_starts_with($key, 'textUnderline-')) {
+                    $values[$key] = $conf;
+                }
+            });
 
         $values['title'] = !empty($config['title']) ? $config['title'] : $componentType->getName();
-        $values['tooltip'] = !empty($config['tooltip']) ? $config['tooltip'] : $componentType->getHint();
+
+        if (!empty($config['tooltip'])) {
+            $values['tooltip'] = $config['tooltip'];
+        }
+
+        if (!empty($config['backgroundColor']) && ($componentType->getMeterKey() !== Dashboard\ComponentType::EXTERNAL_IMAGE)) {
+            $values['backgroundColor'] = $config['backgroundColor'];
+        }
 
         $redirect = $config['redirect'] ?? false;
 
@@ -136,6 +156,9 @@ class DashboardSettingsService {
         switch ($meterKey) {
             case Dashboard\ComponentType::ONGOING_PACKS:
                 $values += $this->serializeOngoingPacks($entityManager, $componentType, $config, $example, $meter);
+                break;
+            case Dashboard\ComponentType::DAILY_HANDLING_INDICATOR:
+                $values += $this->serializeDailyHandlingIndicator($componentType, $config, $example, $meter);
                 break;
             case Dashboard\ComponentType::CARRIER_TRACKING:
                 $values += $this->serializeCarrierIndicator($entityManager, $componentType, $config, $example);
@@ -159,7 +182,7 @@ class DashboardSettingsService {
             case Dashboard\ComponentType::DROP_OFF_DISTRIBUTED_PACKS:
             case Dashboard\ComponentType::PACK_TO_TREAT_FROM:
             case Dashboard\ComponentType::MONETARY_RELIABILITY_GRAPH:
-                $values += $this->serializeSimpleChart($componentType, $example, $meter);
+                $values += $this->serializeSimpleChart($componentType, $example, $config, $meter);
                 break;
             case Dashboard\ComponentType::DAILY_ARRIVALS_EMERGENCIES:
             case Dashboard\ComponentType::ARRIVALS_EMERGENCIES_TO_RECEIVE:
@@ -172,7 +195,8 @@ class DashboardSettingsService {
                 $values += $this->serializeDailyDispatches($componentType, $config, $example, $meter);
                 break;
             case Dashboard\ComponentType::DAILY_HANDLING:
-                $values += $this->serializeDailyHandling($componentType, $config, $example, $meter);
+            case Dashboard\ComponentType::DAILY_OPERATIONS:
+                $values += $this->serializeDailyHandlingOrOperations($entityManager, $componentType, $config, $example, $meter);
                 break;
             case Dashboard\ComponentType::REQUESTS_TO_TREAT:
             case Dashboard\ComponentType::ORDERS_TO_TREAT:
@@ -184,6 +208,14 @@ class DashboardSettingsService {
                 break;
         }
 
+        // must be after component serialization
+        if (!isset($values['chartColors']) && !empty($config['chartColors'])) {
+            $values['chartColors'] = $config['chartColors'];
+        }
+
+        if (!isset($values['chartColorsLabels']) && !empty($config['chartColorsLabels'])) {
+            $values['chartColorsLabels'] = $config['chartColorsLabels'];
+        }
         return $values;
     }
 
@@ -206,61 +238,68 @@ class DashboardSettingsService {
                     return $carry;
                 }, []);
 
-            if ($config["kind"] == "delivery" && ($mode === self::MODE_EXTERNAL || $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_DEM_LIVR))) {
+            if ($config["kind"] == "delivery" && ($mode === self::MODE_EXTERNAL || ($this->userService->getUser() && $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_DEM_LIVR)))) {
                 $demandeRepository = $entityManager->getRepository(Demande::class);
                 if($config["shown"] === Dashboard\ComponentType::REQUESTS_EVERYONE || $mode !== self::MODE_EXTERNAL) {
                     $pendingDeliveries = Stream::from($demandeRepository->findRequestToTreatByUser($loggedUser, 50))
-                        ->map(function(Demande $demande) use ($averageRequestTimesByType, $mode) {
-                            return $this->demandeLivraisonService->parseRequestForCard($demande, $this->dateService, $averageRequestTimesByType, $mode);
+                        ->map(function(Demande $demande) use ($averageRequestTimesByType) {
+                            return $this->demandeLivraisonService->parseRequestForCard($demande, $this->dateService, $averageRequestTimesByType);
                         })
                         ->toArray();
                 }
             }
 
-            if ($config["kind"] == "collect" && ($mode === self::MODE_EXTERNAL || $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_DEM_COLL))) {
+            if ($config["kind"] == "collect" && ($mode === self::MODE_EXTERNAL || ($this->userService->getUser() && $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_DEM_COLL)))) {
                 $collecteRepository = $entityManager->getRepository(Collecte::class);
                 if($config["shown"] === Dashboard\ComponentType::REQUESTS_EVERYONE || $mode !== self::MODE_EXTERNAL) {
+                    $backgroundColor = $config['backgroundColor'] ?? '';
                     $pendingCollects = Stream::from($collecteRepository->findRequestToTreatByUser($loggedUser, 50))
-                        ->map(function(Collecte $collecte) use ($averageRequestTimesByType, $mode) {
-                            return $this->demandeCollecteService->parseRequestForCard($collecte, $this->dateService, $averageRequestTimesByType, $mode);
+                        ->map(function(Collecte $collecte) use ($averageRequestTimesByType, $backgroundColor) {
+                            return $this->demandeCollecteService->parseRequestForCard($collecte, $this->dateService, $averageRequestTimesByType, $backgroundColor);
                         })
                         ->toArray();
                 }
             }
 
-            if ($config["kind"] == "handling" && ($mode === self::MODE_EXTERNAL || $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_HAND))) {
+            if ($config["kind"] == "handling" && ($mode === self::MODE_EXTERNAL || ($this->userService->getUser() && $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_HAND)))) {
                 $handlingRepository = $entityManager->getRepository(Handling::class);
                 if($config["shown"] === Dashboard\ComponentType::REQUESTS_EVERYONE || $mode !== self::MODE_EXTERNAL) {
                     $pendingHandlings = Stream::from($handlingRepository->findRequestToTreatByUser($loggedUser, 50))
-                        ->map(function(Handling $handling) use ($averageRequestTimesByType, $mode) {
-                            return $this->handlingService->parseRequestForCard($handling, $this->dateService, $averageRequestTimesByType, $mode);
+                        ->map(function(Handling $handling) use ($averageRequestTimesByType) {
+                            return $this->handlingService->parseRequestForCard($handling, $this->dateService, $averageRequestTimesByType);
                         })
                         ->toArray();
                 }
             }
 
-            if ($config["kind"] == "transfer" && ($mode === self::MODE_EXTERNAL || $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_TRANSFER_REQ))) {
+            if ($config["kind"] == "transfer" && ($mode === self::MODE_EXTERNAL || ($this->userService->getUser() && $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_TRANSFER_REQ)))) {
                 $transferRequestRepository = $entityManager->getRepository(TransferRequest::class);
                 if($config["shown"] === Dashboard\ComponentType::REQUESTS_EVERYONE || $mode !== self::MODE_EXTERNAL) {
                     $pendingTransfers = Stream::from($transferRequestRepository->findRequestToTreatByUser($loggedUser, 50))
-                        ->map(function(TransferRequest $transfer) use ($averageRequestTimesByType, $mode) {
-                            return $this->transferRequestService->parseRequestForCard($transfer, $this->dateService, $averageRequestTimesByType, $mode);
+                        ->map(function(TransferRequest $transfer) use ($averageRequestTimesByType) {
+                            return $this->transferRequestService->parseRequestForCard($transfer, $this->dateService, $averageRequestTimesByType);
                         })
                         ->toArray();
                 }
             }
-            if ($config["kind"] == "dispatch" && ($mode === self::MODE_EXTERNAL || $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_ACHE))) {
+            if ($config["kind"] == "dispatch" && ($mode === self::MODE_EXTERNAL || ($this->userService->getUser() && $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_ACHE)))) {
                 $dispatchRepository = $entityManager->getRepository(Dispatch::class);
                 if($config["shown"] === Dashboard\ComponentType::REQUESTS_EVERYONE || $mode !== self::MODE_EXTERNAL) {
                     $pendingDispatches = Stream::from($dispatchRepository->findRequestToTreatByUser($loggedUser, 50))
-                        ->map(function(Dispatch $dispatch) use ($averageRequestTimesByType, $mode) {
-                            return $this->dispatchService->parseRequestForCard($dispatch, $this->dateService, $averageRequestTimesByType, $mode);
+                        ->map(function(Dispatch $dispatch) use ($averageRequestTimesByType) {
+                            return $this->dispatchService->parseRequestForCard($dispatch, $this->dateService, $averageRequestTimesByType);
                         })
                         ->toArray();
                 }
             }
 
             $values["requests"] = array_merge($pendingDeliveries ?? [], $pendingCollects ?? [], $pendingHandlings ?? [], $pendingTransfers ?? [], $pendingDispatches ?? []);
+        }
+
+        if(isset($config['cardBackgroundColor']) && $config['cardBackgroundColor'] !== '#ffffff') {
+            foreach ($values["requests"] ?? [] as $key => $request) {
+                $values["requests"][$key]['cardBackgroundColor'] = $config['cardBackgroundColor'];
+            }
         }
 
         return $values;
@@ -294,7 +333,6 @@ class DashboardSettingsService {
                         $carry['defaultCounters'][$nature->getLabel()] = random_int(0, 30);
                         return $carry;
                     }, ['chartColors' => [], 'defaultCounters' => []]);
-
                 $values['chartColors'] = $generated['chartColors'];
                 $defaultCounters = $generated['defaultCounters'];
             } else {
@@ -319,7 +357,6 @@ class DashboardSettingsService {
             } else {
                 $segmentsLabels = array_keys($values['chartData'] ?? []);
             }
-
             $values['chartData'] = Stream::from($segmentsLabels)
                 ->reduce(function(array $carry, string $segmentLabel) use ($defaultCounters) {
                     $carry[$segmentLabel] = $defaultCounters;
@@ -361,9 +398,9 @@ class DashboardSettingsService {
         $values = $componentType->getExampleValues();
         if (!$example) {
             $chartValues = $this->dashboardService->getWeekArrival(
-                isset($config['firstDay']) ? $config['firstDay'] : date("d/m/Y", strtotime('monday this week')),
-                isset($config['lastDay']) ? $config['lastDay'] : date("d/m/Y", strtotime('sunday this week')),
-                isset($config['beforeAfter']) ? $config['beforeAfter'] : 'now'
+                $config['firstDay'] ?? date("d/m/Y", strtotime('monday this week')),
+                $config['lastDay'] ?? date("d/m/Y", strtotime('sunday this week')),
+                $config['beforeAfter'] ?? 'now'
             );
             $chartData = Stream::from($chartValues['data'])
                 ->map(function(array $value) {
@@ -373,6 +410,47 @@ class DashboardSettingsService {
             unset($chartValues['data']);
             $values += $chartValues;
         }
+
+        $values['chartColors'] = $config['chartColors'] ?? $values['chartColors'] ?? [];
+
+        return $values;
+    }
+
+    private function serializeDailyHandlingIndicator(Dashboard\ComponentType $componentType,
+                                                     array $config,
+                                                     bool $example = false,
+                                                     DashboardMeter\Indicator $meter = null): array {
+        $shouldShowOperations = isset($config['displayOperations']) && $config['displayOperations'];
+        $shouldShowEmergencies = isset($config['displayEmergency']) && $config['displayEmergency'];
+        if ($example) {
+            $values = $componentType->getExampleValues();
+        } else {
+            if ($meter) {
+                $values = [
+                    'subCounts' => $meter->getSubCounts(),
+                    'delay' => $meter->getDelay(),
+                    'count' => $meter->getCount(),
+                ];
+            } else {
+                $values = [
+                    'subtitle' => '-',
+                    'subCounts' => [
+                        '<span class="text-wii-green">-</span> <span class="text-wii-black">lignes</span>',
+                        '<span class="text-wii-red">-</span> <span class="text-wii-black">urgences</span>'
+                    ],
+                    'count' => '-',
+                ];
+            }
+        }
+        if (!$shouldShowOperations && isset($values['subCounts'][0])) {
+            unset($values['subCounts'][0]);
+        }
+        if (!$shouldShowEmergencies && isset($values['subCounts'][1])) {
+            unset($values['subCounts'][1]);
+        }
+
+        $values['subCounts'] = array_values($values['subCounts']);
+
         return $values;
     }
 
@@ -383,9 +461,11 @@ class DashboardSettingsService {
                                            DashboardMeter\Indicator $meter = null): array {
         $shouldShowTreatmentDelay = isset($config['withTreatmentDelay']) && $config['withTreatmentDelay'];
         $shouldShowLocationLabels = isset($config['withLocationLabels']) && $config['withLocationLabels'];
+        $emergency = isset($config['emergency']) && $config['emergency'];
         if ($example) {
             $values = $componentType->getExampleValues();
-
+            $values['logoURL'] = $config['logoURL'] ?? null;
+            $values['titleComponentLogo'] = $config['titleComponentLogo'] ?? null;
             if ($shouldShowLocationLabels && !empty($config['locations'])) {
                 $locationRepository = $manager->getRepository(Emplacement::class);
                 $locations = $locationRepository->findBy(['id' => $config['locations']]);
@@ -406,7 +486,9 @@ class DashboardSettingsService {
                 ];
             }
         }
-
+        $values['emergency'] = $emergency;
+        $values['logoURL'] = $config['logoURL'] ?? null;
+        $values['titleComponentLogo'] = $config['titleComponentLogo'] ?? null;
         if (!$shouldShowLocationLabels) {
             unset($values['subtitle']);
         } else if (empty($values['subtitle'])) {
@@ -453,9 +535,22 @@ class DashboardSettingsService {
                                               DashboardMeter\Chart $meterChart = null): array {
         $values = $example ? $componentType->getExampleValues() : [];
 
+        if (!empty($config['chartColors'])) {
+            $exampleChartColors = $values['chartColors'] ?? null;
+            $values['chartColors'] = $config['chartColors'];
+            if (isset($exampleChartColors)) {
+                foreach ($exampleChartColors as $index => $color) {
+                    if (!isset($values['chartColors'][$index])) {
+                        $values['chartColors'][$index] = $color;
+                    }
+                }
+            }
+        }
+
         $displayPackNatures = $config['displayPackNatures'] ?? false;
 
         $values['stack'] = true;
+        $values['label'] = 'Arrivages';
 
         $dailyRequest = ($componentType->getMeterKey() === Dashboard\ComponentType::DAILY_ARRIVALS_AND_PACKS);
         if ($dailyRequest) {
@@ -479,6 +574,7 @@ class DashboardSettingsService {
                     return $carry;
                 }, []);
 
+            $values['colorsFilled'] = $displayPackNatures;
             // packs column
             if (isset($chartData['stack'])) {
                 if ($scale) {
@@ -499,14 +595,23 @@ class DashboardSettingsService {
                 }
             }
 
+            if ($values['colorsFilled']
+                && is_array($values['chartColors'])
+                && !empty($values['chartColors'])) {
+                $countChartColors = count($values['chartColors']);
+                if ($countChartColors > 1) {
+                    unset($values['chartColors'][$countChartColors - 1]);
+                }
+            }
+
             $values['chartData'] = $chartData;
         }
-
         return $values;
     }
 
     private function serializeSimpleChart(Dashboard\ComponentType $componentType,
                                           bool $example = false,
+                                          $config = [],
                                           ?DashboardMeter\Chart $chart = null): array {
 
         if (!$example) {
@@ -519,7 +624,18 @@ class DashboardSettingsService {
                 return ["chartData" => []];
             }
         } else {
-            return $componentType->getExampleValues();
+            $values = $componentType->getExampleValues();
+            if ($componentType->getMeterKey() === Dashboard\ComponentType::PACK_TO_TREAT_FROM && isset($config['chartColors'])) {
+                $values['originCaption'] = $config['originCaption'] ?? 'Legende1';
+                $values['destinationCaption'] = $config['destinationCaption'] ?? 'Legende2';
+                $values['chartColors'] = [
+                    'Legende1' => $config['chartColors']['Legende1'] ?? '',
+                    'Legende2' => $config['chartColors']['Legende2'] ?? ''
+                ];
+            } else {
+                $values['chartColors'] = $config['chartColors'] ?? $values['chartColors'] ?? [];
+            }
+            return $values;
         }
     }
 
@@ -530,9 +646,9 @@ class DashboardSettingsService {
         $values = $componentType->getExampleValues();
         if (!$example) {
             $chartValues = $this->dashboardService->getWeekAssoc(
-                isset($config['firstDay']) ? $config['firstDay'] : date("d/m/Y", strtotime('monday this week')),
-                isset($config['lastDay']) ? $config['lastDay'] : date("d/m/Y", strtotime('sunday this week')),
-                isset($config['beforeAfter']) ? $config['beforeAfter'] : 'now'
+                $config['firstDay'] ?? date("d/m/Y", strtotime('monday this week')),
+                $config['lastDay'] ?? date("d/m/Y", strtotime('sunday this week')),
+                $config['beforeAfter'] ?? 'now'
             );
 
             $values['chartData'] = $chartValues['data'];
@@ -540,6 +656,9 @@ class DashboardSettingsService {
             unset($chartValues['data']);
             $values += $chartValues;
         }
+
+        $values['chartColors'] = $config['chartColors'] ?? $values['chartColors'] ?? [];
+
         return $values;
     }
 
@@ -566,23 +685,58 @@ class DashboardSettingsService {
      * @param DashboardMeter\Chart|null $chart
      * @return array
      */
-    private function serializeDailyHandling(Dashboard\ComponentType $componentType,
-                                            array $config,
-                                            bool $example = false,
-                                            DashboardMeter\Chart $chart = null): array {
-
+    private function serializeDailyHandlingOrOperations(EntityManagerInterface $entityManager,
+                                                        Dashboard\ComponentType $componentType,
+                                                        array $config,
+                                                        bool $example = false,
+                                                        DashboardMeter\Chart $chart = null): array {
+        $separateType = isset($config['separateType']) && $config['separateType'];
         if (!$example) {
             if ($chart) {
-                $values = ["chartData" => $chart->getData()];
+                $values = ["chartData" => $chart->getData(), 'chartColors' => $chart->getChartColors()];
             } else {
                 $values = ["chartData" => []];
             }
         } else {
             $values = $componentType->getExampleValues();
+            $values['separateType'] = $config['separateType'] ?? '';
+            $values['handlingTypes'] = $config['handlingTypes'] ?? '';
+            if (!empty($config['handlingTypes']) && $separateType) {
+                $handlingTypes = $entityManager->getRepository(Type::class)->findBy(['id' => $config['handlingTypes']]);
+                $counter = 0;
+                $chartColors = Stream::from($handlingTypes)
+                    ->reduce(function (array $carry, Type $type) use ($config, &$counter, $values) {
+                        $carry[$type->getLabel()] = $config['chartColors'][$type->getLabel()] ?? Dashboard\ComponentType::DEFAULT_CHART_COLOR;
+                        $counter++;
+                        return $carry;
+                    }, []);
+                $values['chartColors'] = $chartColors;
+
+                $chartColorsLabels = Stream::from($handlingTypes)
+                    ->map(function (Type $type) {
+                        return $type->getLabel();
+                    })->toArray();
+                $values['chartColorsLabels'] = $chartColorsLabels;
+
+                $chartValues = Stream::from($handlingTypes)
+                    ->reduce(function (array $carry, Type $type) {
+                        $carry[$type->getLabel()] = rand(10, 18);
+                        return $carry;
+                    }, []);
+
+                $chartDataMultiple = Stream::from($values['chartDataMultiple'])
+                    ->map(function () use ($chartValues) {
+                        return $chartValues;
+                    })->toArray();
+                $values['chartDataMultiple'] = $chartDataMultiple;
+            } else {
+                $values['chartColors'] = (isset($config['chartColors']) && isset($config['chartColors'][0]))
+                    ? [$config['chartColors'][0]]
+                    : [Dashboard\ComponentType::DEFAULT_CHART_COLOR];
+            }
 
             $scale = $config['daysNumber'] ?? DashboardService::DEFAULT_WEEKLY_REQUESTS_SCALE;
-
-            $chartData = $values['chartData'] ?? [];
+            $chartData = $separateType ? ($values['chartDataMultiple'] ?? []) : ($values['chartData'] ?? []);
             $keysToKeep = array_slice(array_keys($chartData), 0, $scale);
             $chartData = Stream::from($keysToKeep)
                 ->reduce(function(array $carry, string $key) use ($chartData) {
@@ -591,9 +745,9 @@ class DashboardSettingsService {
                     }
                     return $carry;
                 }, []);
-
             $values['chartData'] = $chartData;
         }
+        $values['multiple'] = $separateType;
         return $values;
     }
 
@@ -630,6 +784,8 @@ class DashboardSettingsService {
                     return $carry;
                 }, []);
 
+            $values['chartColors'] = $config['chartColors'] ?? $values['chartColors'] ?? [];
+
             $values['chartData'] = $chartData;
         }
         return $values;
@@ -663,6 +819,11 @@ class DashboardSettingsService {
                 'delay' => $meter ? $meter->getDelay() : '-'
             ];
         }
+
+        if (empty($config['treatmentDelay']) && isset($values['delay'])) {
+            unset($values['delay']);
+        }
+
         return $values;
     }
 
@@ -675,7 +836,6 @@ class DashboardSettingsService {
         $pagesToDelete = $this->byId($pageRepository->findAll());
         $pageRowsToDelete = $this->byId($pageRowRepository->findAll());
         $componentsToDelete = $this->byId($componentRepository->findAll());
-
         foreach ($jsonDashboard as $jsonPage) {
             [$updatePage, $page] = $this->getEntity($entityManager, Dashboard\Page::class, $jsonPage);
             if ($page) {
@@ -691,7 +851,6 @@ class DashboardSettingsService {
 
                                 foreach ($jsonRow["components"] as $jsonComponent) {
                                     [$updateComponent, $component] = $this->getEntity($entityManager, Dashboard\Component::class, $jsonComponent);
-
                                     if ($updateComponent && $component) {
                                         $type = $componentTypeRepository->find($jsonComponent["type"]);
                                         if (!$type) {
@@ -700,6 +859,7 @@ class DashboardSettingsService {
                                         $component->setType($type);
                                         $component->setRow($row);
                                         $component->setColumnIndex($jsonComponent["columnIndex"]);
+                                        $component->setDirection($jsonComponent["direction"] !== "" ? $jsonComponent["direction"] : null);
                                         $component->setCellIndex($jsonComponent["cellIndex"] ?? null);
                                         $this->validateComponentConfig($type, $jsonComponent["config"]);
                                         $component->setConfig($jsonComponent["config"]);
@@ -740,13 +900,14 @@ class DashboardSettingsService {
     private function validateComponentConfig(Dashboard\ComponentType $componentType,
                                              array $config) {
         if ($componentType->getMeterKey() === Dashboard\ComponentType::ENTRIES_TO_HANDLE) {
-            if (empty($config['segments']) || count($config['segments']) < 2) {
-                throw new InvalidArgumentException(self::INVALID_SEGMENTS_ENTRY . '-' . $config['title']);
+            $errorMessage = self::INVALID_SEGMENTS_ENTRY . '-' . $config['title'];
+            if (empty($config['segments']) || count($config['segments']) < 1) {
+                throw new InvalidArgumentException($errorMessage);
             } else {
                 $previousSegment = 0;
                 foreach ($config['segments'] as $segment) {
                     if ($previousSegment > $segment) {
-                        throw new InvalidArgumentException(self::INVALID_SEGMENTS_ENTRY . '-' . $config['title']);
+                        throw new InvalidArgumentException($errorMessage);
                     } else {
                         $previousSegment = $segment;
                     }
@@ -843,5 +1004,4 @@ class DashboardSettingsService {
 
         return $link;
     }
-
 }

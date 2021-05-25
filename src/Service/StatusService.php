@@ -10,44 +10,24 @@ use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Security;
 use Twig\Environment as Twig_Environment;
-use Twig\Error\LoaderError;
-use Twig\Error\RuntimeError;
-use Twig\Error\SyntaxError;
 
 class StatusService {
 
-    private $specificService;
     private $entityManager;
     private $security;
     private $templating;
     private $router;
 
-    /**
-     * @var Utilisateur
-     */
-    private $user;
-
-    public function __construct(SpecificService $specificService,
-                                EntityManagerInterface $entityManager,
+    public function __construct(EntityManagerInterface $entityManager,
                                 Security $security,
-                                TokenStorageInterface $tokenStorage,
                                 Twig_Environment $templating,
                                 RouterInterface $router) {
-        $this->specificService = $specificService;
         $this->entityManager = $entityManager;
         $this->security = $security;
-        $this->user = $tokenStorage->getToken()->getUser();
         $this->templating = $templating;
         $this->router = $router;
     }
 
-    /**
-     * @param null $params
-     * @return array
-     * @throws LoaderError
-     * @throws RuntimeError
-     * @throws SyntaxError
-     */
     public function getDataForDatatable($params = null) {
         $filtreSupRepository = $this->entityManager->getRepository(FiltreSup::class);
         $statusRepository = $this->entityManager->getRepository(Statut::class);
@@ -69,21 +49,14 @@ class StatusService {
         ];
     }
 
-    /**
-     * @param Statut $status
-     * @return array
-     * @throws LoaderError
-     * @throws RuntimeError
-     * @throws SyntaxError
-     */
     public function dataRowStatus($status) {
 
         $url['edit'] = $this->router->generate('status_api_edit', ['id' => $status->getId()]);
         return [
             'id' => $status->getId() ?? '',
             'category' => $status->getCategorie() ? $status->getCategorie()->getNom() : '',
-            'label' => $status->getNom() ? $status->getNom() : '',
-            'comment' => $status->getComment() ? $status->getComment() : '',
+            'label' => $status->getNom() ?: '',
+            'comment' => $status->getComment() ?: '',
             'state' => $this->getStatusStateLabel($status->getState()),
             'defaultStatus' => $status->isDefaultForCategory() ? 'oui' : 'non',
             'notifToDeclarant' => $status->getSendNotifToDeclarant() ? 'oui' : 'non',
@@ -100,23 +73,33 @@ class StatusService {
         return [
             [
                 'label' => 'Brouillon',
-                'id' => Statut::DRAFT
+                'id' => Statut::DRAFT,
+                'code' => 'draft'
             ],
             [
                 'label' => 'À traiter',
-                'id' => Statut::NOT_TREATED
+                'id' => Statut::NOT_TREATED,
+                'code' => 'notTreated'
+            ],
+            [
+                'label' => 'En cours',
+                'id' => Statut::IN_PROGRESS,
+                'code' => 'inProgress'
             ],
             [
                 'label' => 'Traité',
-                'id' => Statut::TREATED
+                'id' => Statut::TREATED,
+                'code' => 'treated'
             ],
             [
                 'label' => 'Litige',
-                'id' => Statut::DISPUTE
+                'id' => Statut::DISPUTE,
+                'code' => 'dispute'
             ],
             [
                 'label' => 'Partiel',
-                'id' => Statut::PARTIAL
+                'id' => Statut::PARTIAL,
+                'code' => 'partial'
             ]
         ];
     }
@@ -127,6 +110,18 @@ class StatusService {
         foreach ($states as $state) {
             if ($state['id'] === $stateId) {
                 $label = $state['label'];
+                break;
+            }
+        }
+        return $label;
+    }
+
+    public function getStatusStateCode(int $stateId): ?string {
+        $states = $this->getStatusStatesValues();
+        $label = null;
+        foreach ($states as $state) {
+            if ($state['id'] === $stateId) {
+                $label = $state['code'];
                 break;
             }
         }

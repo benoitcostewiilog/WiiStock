@@ -1,12 +1,23 @@
 $maxColumnOnRow: 12;
 $maxRowOnPage: 12;
-$columnGutters: 15px;
 $responsive-breakpoint: map-get($grid-breakpoints, lg);
+
+$rowNumberToDatatableHeight: (
+    1: 66vh,
+    2: 28vh,
+    3: 12vh,
+    4: 8vh
+);
+
+.dashboard-button {
+    line-height: normal;
+}
 
 .refresh-date {
     &.display {
         position: fixed;
-        bottom: 0; right: 0;
+        bottom: 0;
+        right: 0;
     }
 
     &.external {
@@ -19,12 +30,31 @@ $responsive-breakpoint: map-get($grid-breakpoints, lg);
     }
 }
 
+.dashboard-settings {
+    @media (max-width: $responsive-breakpoint) {
+        .dashboard-row-wrapper {
+            width: 97% !important;
+        }
+        .action-row-container {
+            width: 3%;
+        }
+    }
+    @media (min-width: $responsive-breakpoint) {
+        .dashboard-row-wrapper {
+            width: 98% !important;
+        }
+        .action-row-container {
+            width: 2%;
+        }
+    }
+}
+
 .dashboard-container {
     flex: 1;
     display: flex;
     flex-direction: column;
 
-    .dashboard-ext & {
+    @media (min-width: $responsive-breakpoint) {
         overflow: hidden;
     }
 }
@@ -35,105 +65,157 @@ $responsive-breakpoint: map-get($grid-breakpoints, lg);
     height: 100%;
     width: 100%;
 
-    .dashboard-ext & {
+    @media (min-width: $responsive-breakpoint) {
         overflow: hidden;
-    }
-
-    @media (min-width: $responsive-breakpoint) {
-        height: 100%;
-    }
-
-    @media (min-width: $responsive-breakpoint) {
         @for $rowIndex from 1 through $maxRowOnPage {
-            &.dashboard-external-size-#{$rowIndex} .dashboard-row {
-                flex: 0 0 calc(#{percentage(1 / $rowIndex)} - #{$columnGutters});
-                max-height: calc(#{percentage(1 / $rowIndex)} - #{$columnGutters});
-            }
-        }
+            &.dashboard-size-#{$rowIndex} .dashboard-row {
+                flex: 1 1 calc(#{percentage(1 / $rowIndex)} - #{$spacer});
+                max-height: calc(#{percentage(1 / $rowIndex)} - #{$spacer});
 
-        @for $rowIndex from 2 through $maxRowOnPage {
-            &.dashboard-size-#{$rowIndex} .pending-request-wrapper {
-                max-height: 400px;
-            }
-        }
-    }
-
-    &.dashboard-size-1 .pending-request-wrapper {
-        max-height: 400px;
-    }
-
-    .dashboard-row {
-        display: flex;
-        width: 100%;
-        position: relative;
-
-        margin-top: map-get($spacers, 2);
-        margin-bottom: map-get($spacers, 2);
-
-        @media (min-width: $responsive-breakpoint) {
-            @for $columnIndex from 1 through $maxColumnOnRow {
-                &.dashboard-row-size-#{$columnIndex} > .dashboard-row-wrapper > .dashboard-component {
-                    flex: 0 0 calc(#{percentage(1 / $columnIndex)} - #{$columnGutters});
-                    max-width: calc(#{percentage(1 / $columnIndex)} - #{$columnGutters});
+                .dataTables_scrollBody {
+                    height: if(map-has-key($rowNumberToDatatableHeight, $rowIndex), map-get($rowNumberToDatatableHeight, $rowIndex), 0) !important;
                 }
-            }
-        }
-
-        .dashboard-row-wrapper {
-            display: flex;
-            width: 100%;
-
-            @media all and (max-width: $responsive-breakpoint) {
-                flex-direction: column;
             }
         }
     }
 }
 
-.dashboard-component {
+.dashboard-row {
+    display: flex;
+    width: 100%;
     position: relative;
-    border-radius: 8px;
-    max-height: 100%;
 
-    &.dashboard-component-split {
-        flex-direction: column;
+    @media (min-width: $responsive-breakpoint) {
+        margin-top: map-get($spacers, 2);
+        margin-bottom: map-get($spacers, 2);
 
-        & > .dashboard-component {
-            margin-left: 0;
-            margin-right: 0;
-            flex: 1;
-        }
-        &> .dashboard-component:not(:last-child) {
-            margin-bottom: 10px;
+        @for $columnIndex from 1 through $maxColumnOnRow {
+            &[data-size="#{$columnIndex}"] > .dashboard-row-wrapper > .dashboard-component {
+                flex: 1 1 calc(#{percentage(1 / $columnIndex)} - #{$spacer});
+                max-width: calc(#{percentage(1 / $columnIndex)} - #{$spacer});
+            }
         }
     }
 
-    @media (max-width: $responsive-breakpoint) {
-        margin-top: $columnGutters / 2;
-        margin-bottom: $columnGutters / 2;
-        width: 100%;
+    .dashboard-row-wrapper {
+        display: flex;
         flex: 1;
-        max-width: 100%;
+        width: 100%;
 
-        & canvas {
-            max-height: 400px !important;
+        .dashboard-settings & {
+            width: 98% !important;
+        }
+
+        @media (min-width: $responsive-breakpoint) {
+            flex-direction: row;
+        }
+
+        @media (max-width: $responsive-breakpoint) {
+            flex-direction: column;
+        }
+    }
+
+    .action-row-container {
+        display: flex;
+        justify-content: center;
+        align-content: center;
+        flex-direction: column;
+
+        .icon {
+            cursor: pointer;
+            margin: 3px 0;
+        }
+    }
+}
+
+.dashboard-component-placeholder {
+    background: #FFF;
+    border-radius: 16px;
+    flex: 1 1 auto;
+    height: 100px;
+    margin: 0 8px;
+
+    &.not-selected {
+        border: 4px solid #000;
+    }
+
+    &.selected {
+        border: 4px solid #00c2f1;
+    }
+
+    &.not-selectable {
+        border: 4px dashed #808080;
+        background: #e7e7e7;
+    }
+}
+
+.dashboard-image-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.dashboard-component {
+    position: relative;
+    border-radius: 8px;
+
+    @media (max-width: $responsive-breakpoint) {
+        margin-top: map-get($spacers, 1);
+        margin-bottom: map-get($spacers, 1);
+
+        .dataTables_scrollBody {
+            height: 20vh;
         }
     }
 
     @media (min-width: $responsive-breakpoint) {
-        margin-left: $columnGutters / 2;
-        margin-right: $columnGutters / 2;
+        margin-left: map-get($spacers, 2);
+        margin-right: map-get($spacers, 2);
+
+        &.dashboard-component-split-horizontally {
+            display: flex;
+            flex-direction: column;
+
+            & > .dashboard-component {
+                margin-left: 0;
+                margin-right: 0;
+                flex: 1 1 50%;
+                height: calc(50% - 5px);
+            }
+            &> .dashboard-component:not(:last-child) {
+                margin-bottom: 10px;
+            }
+        }
+
+        &.dashboard-component-split-vertically {
+            display: flex;
+            flex-direction: row;
+
+            & > .dashboard-component {
+                margin-top: 0;
+                margin-bottom: 0;
+                flex: 1 1 50%;
+                width: calc(50% - 5px);
+            }
+            &> .dashboard-component:not(:last-child) {
+                margin-right: 10px;
+            }
+        }
+
+        .dashboard-component-column {
+            height: 100% !important;
+        }
     }
 
     &.empty {
         background: #D0D9E0;
         align-items: center;
         justify-content: center;
-        min-height: 100px;
         border: 2px dashed #878d92;
+        display: flex;
 
         @media (max-width: $responsive-breakpoint) {
-            display: none;
+            display: none !important;
         }
     }
 
@@ -144,11 +226,22 @@ $responsive-breakpoint: map-get($grid-breakpoints, lg);
         top: 3px;
         right: 3px;
         cursor: pointer;
+        @media (max-width: $responsive-breakpoint) {
+            top: calc(3px + map-get($spacers, 2));
+        }
     }
 }
 
 .dashboard-box {
     @extend .wii-card;
+
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 2px 3px grey;
+    background: $white;
 
     .dashboard:not(.dashboard-bounce) &,
     &:not(a){
@@ -160,12 +253,45 @@ $responsive-breakpoint: map-get($grid-breakpoints, lg);
         padding: 0.20rem;
     }
 
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 2px 2px 3px grey;
-    position: relative;
-    background: $white;
+    &.dashboard-box-indicator > * {
+        margin: auto 0;
+    }
+
+    @media (max-width: $responsive-breakpoint) {
+        min-height: 30px;
+        &.dashboard-box-indicator {
+            min-height: 100px;
+        }
+    }
+
+    @media (min-width: $responsive-breakpoint) {
+        &.dashboard-box-container-title-content,
+        &.dashboard-box-container-title-content-rangeButton {
+            .title {
+                height: 14%;
+            }
+
+            .content {
+                position: relative;
+            }
+        }
+
+        &.dashboard-box-container-title-content {
+            .content {
+                height: 86%;
+            }
+        }
+
+        &.dashboard-box-container-title-content-rangeButton {
+            .range-buttons {
+                height: 10%;
+            }
+
+            .content {
+                height: 76%;
+            }
+        }
+    }
 
     .title {
         @extend .h5;
@@ -179,6 +305,7 @@ $responsive-breakpoint: map-get($grid-breakpoints, lg);
 
         .dashboard-ext & {
             font-weight: bold;
+            margin-bottom: 0;
         }
     }
 
@@ -217,17 +344,22 @@ $responsive-breakpoint: map-get($grid-breakpoints, lg);
             padding-right: 2px;
 
             .title {
-                font-size: 1.7vw !important;
+                font-size: 1.4vw !important;
                 font-weight: 600;
             }
 
             .dashboard-stats-counter {
-                font-size: 4.5vw !important;
+                font-size: 2.6vw !important;
             }
         }
 
         .has-tooltip {
-            font-size: 1.5vw;
+            font-size: .7vw;
+        }
+
+        .dashboard-stats-delay-title {
+            font-weight: normal !important;
+            margin-top: 0 !important;
         }
 
         .dashboard-stats {
@@ -239,7 +371,7 @@ $responsive-breakpoint: map-get($grid-breakpoints, lg);
             line-height: 0.8;
 
             &.dashboard-stats-delay {
-                font-size: 1.5rem;
+                font-size: 1.6vw;
             }
 
             &.dashboard-stats-counter {
@@ -247,18 +379,17 @@ $responsive-breakpoint: map-get($grid-breakpoints, lg);
                 word-wrap: break-word;
             }
 
-            &.dashboard-stats-label {
-                font-size: 1.5rem;
+            @media (max-width: $responsive-breakpoint) {
+                &.dashboard-stats-counter {
+                    font-size: 5vw;
+                }
+                &.dashboard-stats-delay {
+                    font-size : 4vw
+                }
             }
+
         }
     }
-}
-
-.delete-row-container {
-    display: flex;
-    justify-content: center;
-    align-content: center;
-    flex-direction: column;
 }
 
 .dashboard-bottom-bar {
@@ -321,6 +452,17 @@ $responsive-breakpoint: map-get($grid-breakpoints, lg);
     &.graph {
         min-height: 250px;
     }
+
+    .dashboard-box {
+        min-width: 250px;
+    }
+}
+
+sup {
+    font-size: 10px !important;
+    color: black !important;
+    font-weight: 100 !important;
+    margin-right: 2px;
 }
 
 .component-type-container {
@@ -328,10 +470,18 @@ $responsive-breakpoint: map-get($grid-breakpoints, lg);
     flex-direction: column;
     box-shadow: 3px 3px 6px #555;
     border-radius: 4px;
-    margin: 0 10px;
+    margin: 0 5px;
     padding: 0 10px;
     width: 25%;
     flex-grow: 1;
+
+    &:first-child {
+        margin-left: 0;
+    }
+
+    &:last-child {
+        margin-right: 0;
+    }
 
     .component-selector {
         position: relative;
@@ -342,11 +492,81 @@ $responsive-breakpoint: map-get($grid-breakpoints, lg);
             justify-content: center;
             align-items: center;
             width: 100%;
-            height: 70px;
+            min-height: 70px;
         }
     }
 }
 
 .select2-container--default .select2-results__option[aria-disabled=true] {
     display: none;
+}
+
+.customization-tools {
+    width: 100%;
+
+    .card-header {
+        padding: 0px;
+    }
+
+    .card-body {
+        padding: 0px;
+    }
+
+    .toggle-collapsible .btn-menu-label {
+        padding-left: 0;
+    }
+
+    .toggle-collapsible::before {
+        padding-left: 16px;
+        padding-top: 4px;
+    }
+}
+
+@mixin font-style-selector ($path) {
+    width: 30px;
+    height: 30px;
+    margin: 0 3px;
+
+    i {
+        display: inline-block;
+        background: url($path) no-repeat center;
+        background-size: 20px 20px;
+        width: 30px;
+        height: 30px;
+        border: 2px solid black;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    input:checked ~ i {
+        border-color: #008ccd;
+    }
+
+    input {
+        display: none;
+    }
+}
+
+.text-bold-selector {
+    @include font-style-selector('../img/bold.svg');
+}
+
+.text-italic-selector {
+    @include font-style-selector('../img/italic.svg');
+}
+
+.text-underline-selector {
+    @include font-style-selector('../img/underline.svg');
+}
+
+.scroll, .dashboard-box .title {
+    white-space: nowrap;
+}
+
+p.card-title {
+    font-weight: bold;
+}
+
+.chart-color-picker {
+    margin: 5px 20% 5px 0;
 }

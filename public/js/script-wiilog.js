@@ -1,3 +1,8 @@
+const MAX_UPLOAD_FILE_SIZE = 10000000;
+const MAX_IMAGE_PIXELS = 1000000;
+const ALLOWED_IMAGE_EXTENSIONS = ['PNG', 'png', 'JPEG', 'jpeg', 'JPG','jpg','svg'];
+
+const PAGE_PURCHASE_REQUEST = 'rpurchase';
 const PAGE_TRANSFER_REQUEST = 'rtransfer';
 const PAGE_TRANSFER_ORDER = 'otransfer';
 const PAGE_DEM_COLLECTE = 'dcollecte';
@@ -139,13 +144,13 @@ function editRow(button, path, modal, submit, editorToInit = false, editor = '.e
         const $modalBody = modal.find('.modal-body');
         $modalBody.html(resp);
         modal.find('.select2').select2();
-        Select2.initFree(modal.find('.select2-free'));
-        Select2.provider(modal.find('.ajax-autocomplete-fournisseur-edit'));
-        Select2.frequency(modal.find('.ajax-autocomplete-frequency'));
-        Select2.articleReference(modal.find('.ajax-autocomplete-edit, .ajax-autocomplete-ref'));
-        Select2.location(modal.find('.ajax-autocomplete-location-edit'));
-        Select2.carrier(modal.find('.ajax-autocomplete-transporteur-edit'));
-        Select2.user(modal.find('.ajax-autocomplete-user-edit'));
+        Select2Old.initFree(modal.find('.select2-free'));
+        Select2Old.provider(modal.find('.ajax-autocomplete-fournisseur-edit'));
+        Select2Old.frequency(modal.find('.ajax-autocomplete-frequency'));
+        Select2Old.articleReference(modal.find('.ajax-autocomplete-edit, .ajax-autocomplete-ref'));
+        Select2Old.location(modal.find('.ajax-autocomplete-location-edit'));
+        Select2Old.carrier(modal.find('.ajax-autocomplete-transporteur-edit'));
+        Select2Old.user(modal.find('.ajax-autocomplete-user-edit'));
         modal.find('.list-multiple').select2();
         if (wantsFreeFieldsRequireCheck) {
             toggleRequiredChampsLibres(modal.find('#typeEdit'), 'edit');
@@ -342,10 +347,6 @@ function toggleRequiredChampsLibres($select, require, $freeFieldContainer = null
     }
 }
 
-function clearDiv() {
-    $('.clear').html('');
-}
-
 function clearErrorMsg($div) {
     $div.closest('.modal').find('.error-msg').html('');
 }
@@ -399,11 +400,18 @@ function clearModal(modal) {
         .find('.modal-body')
         .find('.ajax-autocomplete, .ajax-autocomplete-location, .ajax-autocomplete-fournisseur, .ajax-autocomplete-transporteur, .select2, .select2-free, .ajax-autocomplete-user');
     selects.each(function () {
-        if (!$(this).hasClass('no-clear')) {
-            if ($(this).hasClass('needs-default')) {
-                $(this).val($(this).data('init')).trigger('change');
+        const $this = $(this);
+
+        if (!$this.hasClass('no-clear')) {
+            if ($this.hasClass('needs-default')) {
+                if($this.is(`[data-default-all]`)) {
+                    $this.find(`option`).prop('selected', true);
+                    $this.trigger('change');
+                } else {
+                    $this.val($this.data('init')).trigger('change');
+                }
             } else {
-                $(this).val(null).trigger('change');
+                $this.val(null).trigger('change');
             }
         }
     });
@@ -670,7 +678,7 @@ function initDateTimePicker(dateInput = '#dateMin, #dateMax, #expectedDate', for
     let options = {
         format: format,
         useCurrent: false,
-        locale: moment.locale(),
+        locale: moment.locale('fr'),
         showTodayButton: true,
         showClear: true,
         icons: {
@@ -723,6 +731,7 @@ function displayFiltersSup(data) {
             case 'multipleTypes':
             case 'receivers':
             case 'requesters':
+            case 'commandList':
             case 'operators':
             case 'dispatchNumber':
             case 'emergencyMultiple':
@@ -1069,4 +1078,55 @@ function onTypeChange($select) {
 
 function getBSAlertModal() {
     return $('#alert-modal');
+}
+
+function updateImagePreview(preview, upload, $title = null, $delete = null, $callback = null) {
+    let $upload = $(upload)[0];
+
+    $(upload).change(() => {
+        if ($upload.files && $upload.files[0]) {
+            let fileNameWithExtension = $upload.files[0].name.split('.');
+            let extension = fileNameWithExtension[fileNameWithExtension.length - 1];
+
+            if ($upload.files[0].size < MAX_UPLOAD_FILE_SIZE) {
+                if (ALLOWED_IMAGE_EXTENSIONS.indexOf(extension) !== -1) {
+                    if ($title) {
+                        $title.text(fileNameWithExtension.join('.').substr(0, 5) + '...');
+                        $title.attr('title', fileNameWithExtension.join('.'));
+                        if($title.siblings('input[name=titleComponentLogo]').length > 0) {
+                            $title.siblings('input[name=titleComponentLogo]').last().val($upload.files[0].name);
+                        }
+                    }
+
+                    let reader = new FileReader();
+                    reader.onload = function (e) {
+                        let image = new Image();
+
+                        image.onload = function() {
+                            const pixels = image.height * image.width;
+                            if (pixels <= MAX_IMAGE_PIXELS) {
+                                if ($callback) {
+                                    $callback($upload);
+                                }
+                                $(preview)
+                                    .attr('src', e.target.result)
+                                    .removeClass('d-none');
+                                $delete.removeClass('d-none');
+                            } else {
+                                showBSAlert('Veuillez choisir une image ne faisant pas plus de 1000x1000.', 'danger');
+                            }
+                        };
+
+                        image.src = e.target.result;
+                    };
+
+                    reader.readAsDataURL($upload.files[0]);
+                } else {
+                    showBSAlert('Veuillez choisir une image valide (png, jpeg, jpg, svg).', 'danger')
+                }
+            } else {
+                showBSAlert('La taille du fichier est supérieure à 10 mo.', 'danger')
+            }
+        }
+    })
 }

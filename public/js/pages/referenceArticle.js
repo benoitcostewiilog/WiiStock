@@ -31,7 +31,8 @@ function initPageModals(table) {
     let submitNewRefArticle = $("#submitNewRefArticle");
     let urlRefArticleNew = Routing.generate('reference_article_new', true);
     InitModal(modalRefArticleNew, submitNewRefArticle, urlRefArticleNew, {tables: [table]});
-    Select2.user(modalRefArticleNew.find('.ajax-autocomplete-user[name=managers]'))
+    Select2Old.user(modalRefArticleNew.find('.ajax-autocomplete-user[name=managers]'));
+    Select2Old.user(modalRefArticleNew.find('.ajax-autocomplete-user[name=buyer]'));
 
     let modalDeleteRefArticle = $("#modalDeleteRefArticle");
     let SubmitDeleteRefArticle = $("#submitDeleteRefArticle");
@@ -42,7 +43,7 @@ function initPageModals(table) {
     let submitModifyRefArticle = $('#submitEditRefArticle');
     let urlModifyRefArticle = Routing.generate('reference_article_edit', true);
     InitModal(modalModifyRefArticle, submitModifyRefArticle, urlModifyRefArticle, {tables: [table], clearOnClose: true});
-    Select2.user(modalModifyRefArticle.find('.ajax-autocomplete-user-edit'));
+    Select2Old.user(modalModifyRefArticle.find('.ajax-autocomplete-user-edit'));
 
     let $modalPlusDemande = $('#modalPlusDemande');
     let $submitPlusDemande = $('#submitPlusDemande');
@@ -113,7 +114,7 @@ function initTableRefArticle() {
                 processing: true,
                 serverSide: true,
                 paging: true,
-                order: [[1, 'asc']],
+                order: [[2, 'asc']],
                 ajax: {
                     'url': url,
                     'type': 'POST',
@@ -127,6 +128,7 @@ function initTableRefArticle() {
                     needsResize: true
                 },
                 rowConfig: {
+                    classField: 'colorClass',
                     needsRowClickAction: true
                 },
                 hideColumnConfig: {
@@ -322,7 +324,7 @@ let ajaxPlusDemandeContent = function (button, type) {
         }
 
         showDemande(button, type);
-        Select2.location($('.ajax-autocomplete-location-edit'));
+        Select2Old.location($('.ajax-autocomplete-location-edit'));
         $('.list-multiple').select2();
     });
 }
@@ -338,7 +340,7 @@ let ajaxEditArticle = function ($select) {
             if (data) {
                 const $editChampLibre = $('.editChampLibre');
                 $editChampLibre.html(data);
-                Select2.location($('.ajax-autocomplete-location-edit'));
+                Select2Old.location($('.ajax-autocomplete-location-edit'));
                 toggleRequiredChampsLibres($select.closest('.modal').find('#type'), 'edit');
                 $('#quantityToTake').removeClass('d-none');
                 modalFooter.removeClass('d-none');
@@ -358,9 +360,9 @@ function initNewReferenceArticleEditor(modal) {
         initEditor('.editor-container-new');
         editorNewReferenceArticleAlreadyDone = true;
     }
-    Select2.provider($(modal).find('.ajax-autocomplete-fournisseur'));
-    Select2.provider($(modal).find('.ajax-autocomplete-fournisseurLabel'), '', 'demande_label_by_fournisseur');
-    Select2.location($(modal).find('.ajax-autocomplete-location'));
+    Select2Old.provider($(modal).find('.ajax-autocomplete-fournisseur'));
+    Select2Old.provider($(modal).find('.ajax-autocomplete-fournisseurLabel'), '', 'demande_label_by_fournisseur');
+    Select2Old.location($(modal).find('.ajax-autocomplete-location'));
     clearModal(modal);
 }
 

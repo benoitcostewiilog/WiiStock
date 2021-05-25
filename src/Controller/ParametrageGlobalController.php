@@ -20,14 +20,15 @@ use App\Entity\Translation;
 use App\Entity\Type;
 use App\Entity\WorkFreeDay;
 use App\Entity\ParametrageGlobal;
-use App\Repository\PrefixeNomDemandeRepository;
 use App\Service\AlertService;
 use App\Service\AttachmentService;
 use App\Service\GlobalParamService;
+use App\Service\SpecificService;
 use App\Service\TranslationService;
 use App\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
+use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -39,7 +40,8 @@ use Symfony\Component\Routing\Annotation\Route;
 /**
  * @Route("/parametrage-global")
  */
-class ParametrageGlobalController extends AbstractController {
+class ParametrageGlobalController extends AbstractController
+{
 
     private $engDayToFr = [
         'monday' => 'Lundi',
@@ -53,16 +55,11 @@ class ParametrageGlobalController extends AbstractController {
 
     /**
      * @Route("/", name="global_param_index")
-     * @param UserService $userService
-     * @param GlobalParamService $globalParamService
-     * @param EntityManagerInterface $entityManager
-     * @return Response
-     * @throws NonUniqueResultException
      */
-
     public function index(UserService $userService,
                           GlobalParamService $globalParamService,
-                          EntityManagerInterface $entityManager): Response {
+                          EntityManagerInterface $entityManager,
+                          SpecificService $specificService): Response {
 
         if(!$userService->hasRightFunction(Menu::PARAM, Action::DISPLAY_GLOB)) {
             return $this->redirectToRoute('access_denied');
@@ -75,7 +72,6 @@ class ParametrageGlobalController extends AbstractController {
         $categoryCLRepository = $entityManager->getRepository(CategorieCL::class);
         $translationRepository = $entityManager->getRepository(Translation::class);
         $workFreeDaysRepository = $entityManager->getRepository(WorkFreeDay::class);
-        $typeRepository = $entityManager->getRepository(Type::class);
 
         $labelLogo = $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::LABEL_LOGO);
         $emergencyIcon = $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::EMERGENCY_ICON);
@@ -87,6 +83,9 @@ class ParametrageGlobalController extends AbstractController {
         $emailLogo = $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::EMAIL_LOGO);
         $mobileLogoHeader = $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::MOBILE_LOGO_HEADER);
         $mobileLogoLogin = $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::MOBILE_LOGO_LOGIN);
+
+        $typeRepository = $entityManager->getRepository(Type::class);
+        $deliveryTypeSettings = $globalParamService->getDefaultDeliveryLocationsByType($entityManager);
 
         $clsForLabels = $champsLibreRepository->findBy([
             'categorieCL' => $categoryCLRepository->findOneByLabel(CategorieCL::ARTICLE)
@@ -106,37 +105,47 @@ class ParametrageGlobalController extends AbstractController {
                 'titleEmergencyLabel' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::EMERGENCY_TEXT_LABEL),
                 'titleCustomLabel' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::CUSTOM_TEXT_LABEL),
                 'dimensions_etiquettes' => $dimensionsEtiquettesRepository->findOneDimension(),
-                'paramDocuments' => [
+                'documentSettings' => [
                     'deliveryNoteLogo' => ($deliveryNoteLogo && file_exists(getcwd() . "/uploads/attachements/" . $deliveryNoteLogo) ? $deliveryNoteLogo : null),
                     'waybillLogo' => ($waybillLogo && file_exists(getcwd() . "/uploads/attachements/" . $waybillLogo) ? $waybillLogo : null),
                 ],
-                'paramReceptions' => [
+                'receptionSettings' => [
                     'receptionLocation' => $globalParamService->getParamLocation(ParametrageGlobal::DEFAULT_LOCATION_RECEPTION),
                     'listStatus' => $statusRepository->findByCategorieName(CategorieStatut::RECEPTION, 'displayOrder'),
                     'listStatusLitige' => $statusRepository->findByCategorieName(CategorieStatut::LITIGE_RECEPT)
                 ],
-                'paramLivraisons' => [
-                    'livraisonLocation' => $globalParamService->getParamLocation(ParametrageGlobal::DEFAULT_LOCATION_LIVRAISON),
+                'deliverySettings' => [
                     'prepaAfterDl' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::CREATE_PREPA_AFTER_DL),
                     'DLAfterRecep' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::CREATE_DL_AFTER_RECEPTION),
                     'paramDemandeurLivraison' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::DEMANDEUR_DANS_DL),
+                    'deliveryRequestTypes' => $typeRepository->findByCategoryLabels([CategoryType::DEMANDE_LIVRAISON]),
+                    'deliveryTypeSettings' => json_encode($deliveryTypeSettings),
                 ],
-                'paramArrivages' => [
+                'arrivalSettings' => [
                     'redirect' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::REDIRECT_AFTER_NEW_ARRIVAL) ?? true,
                     'listStatusLitige' => $statusRepository->findByCategorieName(CategorieStatut::LITIGE_ARR),
                     'defaultArrivalsLocation' => $globalParamService->getParamLocation(ParametrageGlobal::MVT_DEPOSE_DESTINATION),
                     'customsArrivalsLocation' => $globalParamService->getParamLocation(ParametrageGlobal::DROP_OFF_LOCATION_IF_CUSTOMS),
                     'emergenciesArrivalsLocation' => $globalParamService->getParamLocation(ParametrageGlobal::DROP_OFF_LOCATION_IF_EMERGENCY),
+                    'emergencyTriggeringFields' => json_decode($parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::ARRIVAL_EMERGENCY_TRIGGERING_FIELDS)),
                     'autoPrint' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::AUTO_PRINT_COLIS),
                     'sendMail' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::SEND_MAIL_AFTER_NEW_ARRIVAL),
                     'printTwice' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::PRINT_TWICE_CUSTOMS),
                 ],
-                'paramStock' => [
+                'handlingSettings' => [
+                    'removeHourInDatetime' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::REMOVE_HOURS_DATETIME),
+                    'expectedDateColors' => [
+                        'after' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::HANDLING_EXPECTED_DATE_COLOR_AFTER),
+                        'DDay' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::HANDLING_EXPECTED_DATE_COLOR_D_DAY),
+                        'before' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::HANDLING_EXPECTED_DATE_COLOR_BEFORE)
+                    ]
+                ],
+                'stockSettings' => [
                     'alertThreshold' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::SEND_MAIL_MANAGER_WARNING_THRESHOLD),
                     'securityThreshold' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::SEND_MAIL_MANAGER_SECURITY_THRESHOLD),
                     'expirationDelay' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::STOCK_EXPIRATION_DELAY)
                 ],
-                'paramDispatches' => [
+                'dispatchSettings' => [
                     'carrier' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::DISPATCH_WAYBILL_CARRIER),
                     'consignor' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::DISPATCH_WAYBILL_CONSIGNER),
                     'receiver' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::DISPATCH_WAYBILL_RECEIVER),
@@ -150,13 +159,18 @@ class ParametrageGlobalController extends AbstractController {
                     'openModal' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::OPEN_DISPATCH_ADD_PACK_MODAL_ON_CREATION),
                     'statuses' => $statusRepository->findByCategorieName(CategorieStatut::DISPATCH),
                     'types' => $typeRepository->findByCategoryLabels([CategoryType::DEMANDE_DISPATCH]),
+                    'expectedDateColors' => [
+                        'after' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::DISPATCH_EXPECTED_DATE_COLOR_AFTER),
+                        'DDay' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::DISPATCH_EXPECTED_DATE_COLOR_D_DAY),
+                        'before' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::DISPATCH_EXPECTED_DATE_COLOR_BEFORE)
+                    ]
                 ],
                 'mailerServer' => $mailerServerRepository->findOneMailerServer(),
                 'wantsBL' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::INCLUDE_BL_IN_LABEL),
                 'wantsQTT' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::INCLUDE_QTT_IN_LABEL),
                 'blChosen' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::CL_USED_IN_LABELS),
                 'cls' => $clsForLabels,
-                'paramTranslations' => [
+                'translationSettings' => [
                     'translations' => $translationRepository->findAll(),
                     'menusTranslations' => array_column($translationRepository->getMenus(), '1')
                 ],
@@ -184,6 +198,8 @@ class ParametrageGlobalController extends AbstractController {
                 'wantsBatchNumberArticle' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::INCLUDE_BATCH_NUMBER_IN_ARTICLE_LABEL),
                 'wantsExpirationDateArticle' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::INCLUDE_EXPIRATION_DATE_IN_ARTICLE_LABEL),
                 'wantsPackCount' => $parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::INCLUDE_PACK_COUNT_IN_LABEL),
+                'currentClient' => $specificService->getAppClient(),
+                'isClientChangeAllowed' => $_SERVER["APP_ENV"] === "preprod"
             ]);
     }
 
@@ -1037,76 +1053,6 @@ class ParametrageGlobalController extends AbstractController {
     }
 
     /**
-     * @Route("/modifier-parametres-tableau-de-bord", name="edit_dashboard_params",  options={"expose"=true},  methods="GET|POST")
-     * @param Request $request
-     * @param EntityManagerInterface $entityManager
-     * @return Response
-     * @throws NonUniqueResultException
-     */
-    public function editDashboardParams(Request $request,
-                                        EntityManagerInterface $entityManager): Response {
-        if($request->isXmlHttpRequest()) {
-            $post = $request->request;
-            $parametrageGlobalRepository = $entityManager->getRepository(ParametrageGlobal::class);
-
-            $listMultipleSelect = [
-                ParametrageGlobal::DASHBOARD_LIST_NATURES_COLIS => 'listNaturesColis',
-                ParametrageGlobal::DASHBOARD_CARRIER_DOCK => 'carrierDock',
-                ParametrageGlobal::DASHBOARD_LOCATION_AVAILABLE => 'locationAvailable',
-                ParametrageGlobal::DASHBOARD_LOCATION_DOCK => 'locationToTreat',
-                ParametrageGlobal::DASHBOARD_LOCATION_WAITING_CLEARANCE_DOCK => 'locationWaitingDock',
-                ParametrageGlobal::DASHBOARD_LOCATION_WAITING_CLEARANCE_ADMIN => 'locationWaitingAdmin',
-                ParametrageGlobal::DASHBOARD_LOCATION_TO_DROP_ZONES => 'locationDropZone',
-                ParametrageGlobal::DASHBOARD_LOCATION_LITIGES => 'locationLitiges',
-                ParametrageGlobal::DASHBOARD_LOCATION_URGENCES => 'locationUrgences',
-                ParametrageGlobal::DASHBOARD_PACKAGING_1 => 'packaging1',
-                ParametrageGlobal::DASHBOARD_PACKAGING_2 => 'packaging2',
-                ParametrageGlobal::DASHBOARD_PACKAGING_3 => 'packaging3',
-                ParametrageGlobal::DASHBOARD_PACKAGING_4 => 'packaging4',
-                ParametrageGlobal::DASHBOARD_PACKAGING_5 => 'packaging5',
-                ParametrageGlobal::DASHBOARD_PACKAGING_6 => 'packaging6',
-                ParametrageGlobal::DASHBOARD_PACKAGING_7 => 'packaging7',
-                ParametrageGlobal::DASHBOARD_PACKAGING_8 => 'packaging8',
-                ParametrageGlobal::DASHBOARD_PACKAGING_9 => 'packaging9',
-                ParametrageGlobal::DASHBOARD_PACKAGING_10 => 'packaging10',
-                ParametrageGlobal::DASHBOARD_PACKAGING_RPA => 'packagingRPA',
-                ParametrageGlobal::DASHBOARD_PACKAGING_LITIGE => 'packagingLitige',
-                ParametrageGlobal::DASHBOARD_PACKAGING_URGENCE => 'packagingUrgence',
-                ParametrageGlobal::DASHBOARD_PACKAGING_KITTING => 'packagingKitting'
-            ];
-
-            foreach($listMultipleSelect as $labelParam => $selectId) {
-                $listId = $post->get($selectId);
-                $listIdStr = $listId
-                    ? (is_array($listId) ? implode(',', $listId) : $listId)
-                    : null;
-                $param = $parametrageGlobalRepository->findOneByLabel($labelParam);
-                $param->setValue($listIdStr);
-            }
-
-            $listSelect = [
-                ParametrageGlobal::DASHBOARD_NATURE_COLIS => 'natureColis',
-            ];
-
-            foreach($listSelect as $labelParam => $selectId) {
-                $param = $parametrageGlobalRepository->findOneByLabel($labelParam);
-                $param->setValue($post->get($selectId));
-            }
-
-            $this->setLocationListCluster(LocationCluster::CLUSTER_CODE_ADMIN_DASHBOARD_1, $post->get('locationsFirstGraph'), $entityManager);
-            $this->setLocationListCluster(LocationCluster::CLUSTER_CODE_ADMIN_DASHBOARD_2, $post->get('locationsSecondGraph'), $entityManager);
-            $this->setLocationListCluster(LocationCluster::CLUSTER_CODE_DOCK_DASHBOARD_DROPZONE, $post->get('locationDropZone'), $entityManager);
-            $this->setLocationListCluster(LocationCluster::CLUSTER_CODE_PACKAGING_DSQR, $post->get('packagingDSQR'), $entityManager);
-            $this->setLocationListCluster(LocationCluster::CLUSTER_CODE_PACKAGING_GT_ORIGIN, $post->get('packagingOrigineGT'), $entityManager);
-            $this->setLocationListCluster(LocationCluster::CLUSTER_CODE_PACKAGING_GT_TARGET, $post->get('packagingDestinationGT'), $entityManager);
-            $entityManager->flush();
-
-            return new JsonResponse(true);
-        }
-        throw new BadRequestHttpException();
-    }
-
-    /**
      * @Route("/edit-param-locations/{label}",
      *     name="edit_param_location",
      *     options={"expose"=true},
@@ -1208,5 +1154,68 @@ class ParametrageGlobalController extends AbstractController {
                 $location->addCluster($cluster);
             }
         }
+    }
+
+    /**
+     * @Route("/modifier-client", name="toggle_app_client", options={"expose"=true}, methods="GET|POST")
+     */
+    public function toggleAppClient(Request $request): Response {
+        if ($request->isXmlHttpRequest() && $data = json_decode($request->getContent(), true)) {
+            $configPath = "/etc/php7/php-fpm.conf";
+
+            //if we're not on a kubernetes pod => file doesn't exist => ignore
+            if(!file_exists($configPath)) {
+                return $this->json([
+                    "success" => false,
+                    "msg" => "Le client ne peut pas être modifié sur cette instance",
+                ]);
+            }
+
+            try {
+                $config = file_get_contents($configPath);
+                $newAppClient = "env[APP_CLIENT] = $data";
+
+                $config = preg_replace("/^env\[APP_CLIENT\] = .*$/mi", $newAppClient, $config);
+                file_put_contents($configPath, $config);
+
+                //magie noire qui recharge la config php fpm sur les pods kubernetes :
+                //pgrep recherche l'id du processus de php fpm
+                //kill envoie un message USER2 (qui veut dire "recharge la configuration") à phpfpm
+                exec("kill -USR2 $(pgrep -o php-fpm7)");
+
+                return $this->json([
+                    "success" => true,
+                    "msg" => "Le client de l'application a bien été modifié",
+                ]);
+            } catch (Exception $exception) {
+                return $this->json([
+                    "success" => false,
+                    "msg" => "Une erreur est survenue lors du changement du client",
+                ]);
+            }
+        }
+
+        throw new BadRequestHttpException();
+    }
+
+    /**
+     * @Route("/update-delivery-request-default-locations", name="update_delivery_request_default_locations", options={"expose"=true}, methods="POST")
+     */
+    public function updateDeliveryRequestDefaultLocations(Request $request,
+                                                          EntityManagerInterface $entityManager): Response {
+        if($request->isXmlHttpRequest() && $data = json_decode($request->getContent(), true)) {
+            $globalSettingsRepository = $entityManager->getRepository(ParametrageGlobal::class);
+
+            $associatedTypesAndLocations = array_combine($data['types'], $data['locations']);
+            $deliveryRequestDefaultLocations = $globalSettingsRepository->findOneByLabel(ParametrageGlobal::DEFAULT_LOCATION_LIVRAISON);
+            $deliveryRequestDefaultLocations->setValue(json_encode($associatedTypesAndLocations));
+
+            $entityManager->flush();
+
+            return $this->json([
+                'success' => true
+            ]);
+        }
+        throw new BadRequestHttpException();
     }
 }

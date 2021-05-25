@@ -31,6 +31,7 @@ use Twig\Error\LoaderError as Twig_Error_Loader;
 use Twig\Error\RuntimeError as Twig_Error_Runtime;
 use Twig\Error\SyntaxError as Twig_Error_Syntax;
 use Twig\Environment as Twig_Environment;
+use WiiCommon\Helper\Stream;
 
 class DispatchService {
 
@@ -122,6 +123,7 @@ class DispatchService {
      * @throws Twig_Error_Syntax
      */
     public function dataRowDispatch(Dispatch $dispatch) {
+
         $url = $this->router->generate('dispatch_show', ['id' => $dispatch->getId()]);
 
         $categoryFFRepository = $this->entityManager->getRepository(CategorieCL::class);
@@ -130,6 +132,14 @@ class DispatchService {
         $categoryFF = $categoryFFRepository->findOneByLabel(CategorieCL::DEMANDE_DISPATCH);
         $category = CategoryType::DEMANDE_DISPATCH;
         $freeFields = $freeFieldsRepository->getByCategoryTypeAndCategoryCL($category, $categoryFF);
+        $receivers = $dispatch->getReceivers() ?? null;
+        if ($receivers) {
+            $receiversUsernames = Stream::from($receivers->toArray())
+                ->map(function (Utilisateur $receiver) {
+                   return $receiver->getUsername();
+                })
+                ->join(', ');
+        }
 
         $row = [
             'id' => $dispatch->getId() ?? 'Non défini',
@@ -141,7 +151,7 @@ class DispatchService {
             'validationDate' => $dispatch->getValidationDate() ? $dispatch->getValidationDate()->format('d/m/Y H:i:s') : '',
             'endDate' => $dispatch->getEndDate() ? $dispatch->getEndDate()->format('d/m/Y') : '',
             'requester' => $dispatch->getRequester() ? $dispatch->getRequester()->getUserName() : '',
-            'receiver' => $dispatch->getReceiver() ? $dispatch->getReceiver()->getUserName() : '',
+            'receivers' => $receiversUsernames ?? '',
             'locationFrom' => $dispatch->getLocationFrom() ? $dispatch->getLocationFrom()->getLabel() : '',
             'locationTo' => $dispatch->getLocationTo() ? $dispatch->getLocationTo()->getLabel() : '',
             'nbPacks' => $dispatch->getDispatchPacks()->count(),
@@ -212,7 +222,7 @@ class DispatchService {
         $carrierTrackingNumber = $dispatch->getCarrierTrackingNumber();
         $commandNumber = $dispatch->getCommandNumber();
         $requester = $dispatch->getRequester();
-        $receiver = $dispatch->getReceiver();
+        $receivers = $dispatch->getReceivers();
         $locationFrom = $dispatch->getLocationFrom();
         $locationTo = $dispatch->getLocationTo();
         $creationDate = $dispatch->getCreationDate();
@@ -233,22 +243,26 @@ class DispatchService {
             CategorieCL::DEMANDE_DISPATCH,
             CategoryType::DEMANDE_DISPATCH
         );
-
         $receiverDetails = [
-            "label" => "Destinataire",
-            "value" => $receiver ? $receiver->getUsername() : "",
+            "label" => "Destinataire(s)",
+            "value" => "",
+            "isRaw" => true
         ];
-
-        if ($receiver && $receiver->getAddress()) {
-            $receiverDetails["value"] .= '
-                <span class="pl-2"
-                      data-toggle="popover"
-                      data-trigger="click hover"
-                      title="Adresse du destinataire"
-                      data-content="' . htmlspecialchars($receiver->getAddress()) . '">
-                    <i class="fas fa-search"></i>
-                </span>';
-            $receiverDetails["isRaw"] = true;
+        foreach ($receivers as $receiver) {
+            $receiverLine = "<div>";
+            $receiverLine .= $receiver ? $receiver->getUsername() : "";
+            if ($receiver && $receiver->getAddress()) {
+                $receiverLine .= '
+                    <span class="pl-2"
+                          data-toggle="popover"
+                          data-trigger="click hover"
+                          title="Adresse du destinataire"
+                          data-content="' . htmlspecialchars($receiver->getAddress()) . '">
+                        <i class="fas fa-search"></i>
+                    </span>';
+            }
+            $receiverLine .= '</div>';
+            $receiverDetails['value'] .= $receiverLine;
         }
 
         $config = [
@@ -276,7 +290,7 @@ class DispatchService {
                 'label' => 'Demandeur',
                 'value' => $requester ? $requester->getUsername() : ''
             ],
-            $receiverDetails,
+            $receiverDetails ?? [],
             [
                 'label' => $this->translator->trans('acheminement.Numéro de projet'),
                 'title' => 'Numéro de projet',
@@ -363,23 +377,34 @@ class DispatchService {
         return $date ?: null;
     }
 
-    public function sendEmailsAccordingToStatus(Dispatch $dispatch, bool $isUpdate) {
+    public function sendEmailsAccordingToStatus(Dispatch $dispatch, bool $isUpdate)
+    {
         $status = $dispatch->getStatut();
         $recipientAbleToReceivedMail = $status ? $status->getSendNotifToRecipient() : false;
         $requesterAbleToReceivedMail = $status ? $status->getSendNotifToDeclarant() : false;
 
         if ($recipientAbleToReceivedMail || $requesterAbleToReceivedMail) {
             $type = $dispatch->getType() ? $dispatch->getType()->getLabel() : '';
-            $receiverEmails = $dispatch->getReceiver() ? $dispatch->getReceiver()->getMainAndSecondaryEmails() : [];
-            $requesterEmails = $dispatch->getRequester() ? $dispatch->getRequester()->getMainAndSecondaryEmails() : [];
+
+            if ($recipientAbleToReceivedMail && !$dispatch->getReceivers()->isEmpty()) {
+                $receiverEmailUses = $dispatch->getReceivers()->toArray();
+            }
+            else {
+                $receiverEmailUses = [];
+            }
+
+            if ($requesterAbleToReceivedMail && $dispatch->getRequester()) {
+                $receiverEmailUses[] = $dispatch->getRequester();
+            }
+
 
             $partialDispatch = !(
-            $dispatch
-                ->getDispatchPacks()
-                ->filter(function(DispatchPack $dispatchPack) {
-                    return !$dispatchPack->isTreated();
-                })
-                ->isEmpty()
+                $dispatch
+                    ->getDispatchPacks()
+                    ->filter(function(DispatchPack $dispatchPack) {
+                        return !$dispatchPack->isTreated();
+                    })
+                    ->isEmpty()
             );
 
             $translatedTitle = $partialDispatch
@@ -401,16 +426,6 @@ class DispatchService {
                     ? ('FOLLOW GT // Création d\'un(e) ' . $translatedCategory)
                     : 'FOLLOW GT // Changement de statut d\'un(e) ' . $translatedCategory . '.');
 
-            $emails = [];
-
-            if ($recipientAbleToReceivedMail && !empty($receiverEmails)) {
-                array_push($emails, ...$receiverEmails);
-            }
-
-            if ($requesterAbleToReceivedMail && !empty($requesterEmails)) {
-                array_push($emails, ...$requesterEmails);
-            }
-
             $isTreatedStatus = $dispatch->getStatut() && $dispatch->getStatut()->isTreated();
             $isTreatedByOperator = $dispatch->getTreatedBy() && $dispatch->getTreatedBy()->getUsername();
 
@@ -421,7 +436,7 @@ class DispatchService {
                 CategoryType::DEMANDE_DISPATCH
             );
 
-            if (!empty($emails)) {
+            if (!empty($receiverEmailUses)) {
                 $this->mailerService->sendMail(
                     $subject,
                     $this->templating->render('mails/contents/mailDispatch.html.twig', [
@@ -433,7 +448,7 @@ class DispatchService {
                         'hideTreatedBy' => $isTreatedByOperator,
                         'totalCost' => $freeFieldArray
                     ]),
-                    $emails
+                    $receiverEmailUses
                 );
             }
         }
@@ -525,7 +540,7 @@ class DispatchService {
             ['title' => 'Date d\'échéance', 'name' => 'endDate'],
             ['title' => 'Type', 'name' => 'type'],
             ['title' => 'Demandeur', 'name' => 'requester'],
-            ['title' => 'Destinataire', 'name' => 'receiver'],
+            ['title' => 'Destinataires', 'name' => 'receivers','orderable' => false],
             ['title' => 'acheminement.Emplacement prise', 'name' => 'locationFrom', 'translated' => true],
             ['title' => 'acheminement.Emplacement dépose', 'name' => 'locationTo', 'translated' => true],
             ['title' => 'acheminement.Nb colis', 'name' => 'nbPacks', 'translated' => true, 'orderable' => false],
@@ -538,25 +553,19 @@ class DispatchService {
     }
 
     /**
-     * @param Dispatch $request
+     * @param Dispatch $dispatch
      * @param DateService $dateService
      * @param array $averageRequestTimesByType
      * @return array
      */
-    public function parseRequestForCard(Dispatch $request,
+    public function parseRequestForCard(Dispatch $dispatch,
                                         DateService $dateService,
-                                        array $averageRequestTimesByType,
-                                        ?int $mode = null) {
-        if(!$mode || $mode !== DashboardSettingsService::MODE_EXTERNAL) {
-            $hasRightToSeeRequest = $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_ACHE);
-        } else {
-            $hasRightToSeeRequest = false;
-        }
+                                        array $averageRequestTimesByType): array {
 
-        $requestStatus = $request->getStatut() ? $request->getStatut()->getNom() : '';
-        $requestType = $request->getType() ? $request->getType()->getLabel() : '';
-        $typeId = $request->getType() ? $request->getType()->getId() : null;
-        $requestState = $request->getStatut() ? $request->getStatut()->getState() : null;
+        $requestStatus = $dispatch->getStatut() ? $dispatch->getStatut()->getNom() : '';
+        $requestType = $dispatch->getType() ? $dispatch->getType()->getLabel() : '';
+        $typeId = $dispatch->getType() ? $dispatch->getType()->getId() : null;
+        $requestState = $dispatch->getStatut() ? $dispatch->getStatut()->getState() : null;
 
         $averageTime = $averageRequestTimesByType[$typeId] ?? null;
 
@@ -565,7 +574,7 @@ class DispatchService {
         $today = new DateTime();
 
         if (isset($averageTime)) {
-            $expectedDate = (clone $request->getCreationDate())
+            $expectedDate = (clone $dispatch->getCreationDate())
                 ->add($dateService->secondsToDateInterval($averageTime->getAverage()));
             if ($expectedDate >= $today) {
                 $estimatedFinishTimeLabel = 'Date et heure d\'acheminement prévue';
@@ -576,11 +585,10 @@ class DispatchService {
                 }
             }
         }
-        if ($hasRightToSeeRequest) {
-            $href = $this->router->generate('dispatch_show', ['id' => $request->getId()]);
-        }
-        $bodyTitle = $request->getDispatchPacks()->count() . ' colis' . ' - ' . $requestType;
-        $requestDate = $request->getCreationDate();
+        $href = $this->router->generate('dispatch_show', ['id' => $dispatch->getId()]);
+
+        $bodyTitle = $dispatch->getDispatchPacks()->count() . ' colis' . ' - ' . $requestType;
+        $requestDate = $dispatch->getCreationDate();
         $requestDateStr = $requestDate
             ? (
                 $requestDate->format('d ')
@@ -603,10 +611,10 @@ class DispatchService {
             'estimatedFinishTimeLabel' => $estimatedFinishTimeLabel,
             'requestStatus' => $requestStatus,
             'requestBodyTitle' => $bodyTitle,
-            'requestLocation' => $request->getLocationTo() ? $request->getLocationTo()->getLabel() : 'Non défini',
-            'requestNumber' => $request->getNumber(),
+            'requestLocation' => $dispatch->getLocationTo() ? $dispatch->getLocationTo()->getLabel() : 'Non défini',
+            'requestNumber' => $dispatch->getNumber(),
             'requestDate' => $requestDateStr,
-            'requestUser' => $request->getRequester() ? $request->getRequester()->getUsername() : 'Non défini',
+            'requestUser' => $dispatch->getRequester() ? $dispatch->getRequester()->getUsername() : 'Non défini',
             'cardColor' => $requestState === Statut::DRAFT ? 'lightGrey' : 'white',
             'bodyColor' => $requestState === Statut::DRAFT ? 'white' : 'lightGrey',
             'topRightIcon' => 'livreur.svg',

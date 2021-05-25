@@ -13,7 +13,7 @@ use App\Entity\TransferRequest;
 use App\Entity\Utilisateur;
 
 use App\Helper\QueryCounter;
-use App\Helper\Stream;
+use WiiCommon\Helper\Stream;
 use App\Service\VisibleColumnService;
 use DateTime;
 use DateTimeZone;
@@ -56,8 +56,11 @@ class ArticleRepository extends EntityRepository {
         $since->modify("+{$delay}day");
 
         return $this->createQueryBuilder("a")
+            ->join('a.statut','status')
             ->where("a.expiryDate <= :since")
+            ->andWhere("status.code != :consumed")
             ->setParameter("since", $since)
+            ->setParameter('consumed', Article::STATUT_INACTIF)
             ->getQuery()
             ->getResult();
     }

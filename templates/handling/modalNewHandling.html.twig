@@ -19,7 +19,7 @@
                                 onchange="onTypeChange($(this))">
                             <option value="">Type à choisir...</option>
                             {% set typeIsUnique = freeFieldsTypes | length == 1 %}
-                            {% for type in freeFieldsTypes %}
+                            {% for type in freeFieldsTypes |sort((a, b) => a.typeLabel <=> b.typeLabel) %}
                                 <option value="{{ type.typeId }}" {{ typeIsUnique ? 'selected' }}>{{ type.typeLabel }}</option>
                             {% endfor %}
                         </select>
@@ -62,14 +62,15 @@
                         </select>
                     </div>
 
+                    {% set removeHourInDatetime = removeHourInDatetime is defined and removeHourInDatetime %}
                     <div class="form-group col-12">
                         <label for="desired-date">Date attendue*</label>
-                        <input type="datetime-local"
+                        <input type="{{ removeHourInDatetime ? 'date' : 'datetime-local' }}"
                                class="form-control data needed"
                                name="desired-date"
                                title="Date attendue"
                                placeholder="jj/mm/aaaa"
-                               min="{{ 'now' | date('Y-m-d\\TH:i') }}"/>
+                               min="{{ 'now' | date(removeHourInDatetime ? 'Y-m-d' : 'Y-m-d\\TH:i') }}"/>
                     </div>
 
                     {% set fieldCode = constant('App\\Entity\\FieldsParam::FIELD_CODE_EMERGENCY') %}
@@ -114,6 +115,16 @@
                                    min="0"
                                    class="form-control data {{ fieldsParam|isFieldRequired(fieldCode, 'mustToCreate') ? 'needed' }}"
                                    name="carriedOutOperationCount">
+                        </div>
+                    {% endif %}
+                    {% set fieldCode = constant('App\\Entity\\FieldsParam::FIELD_CODE_RECEIVERS_HANDLING') %}
+                    {% if fieldsParam|isFieldRequired(fieldCode, 'displayedFormsCreate') %}
+                        <div class="form-group col-md-6 col-12">
+                            <label>Destinataires{{ fieldsParam|isFieldRequired(fieldCode, 'mustToCreate') ? '*' }}</label>
+                            <select name="receivers"
+                                    class="form-control data ajax-autocomplete-user receivers w-100 {{ fieldsParam|isFieldRequired(fieldCode, 'mustToCreate') ? 'needed' }}"
+                                    multiple>
+                            </select>
                         </div>
                     {% endif %}
 

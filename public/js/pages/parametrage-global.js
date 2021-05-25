@@ -1,5 +1,3 @@
-const maxSizeFileAllowed = 10000000;
-let allowedLogoExtensions = ['PNG', 'png', 'JPEG', 'jpeg', 'JPG','jpg','svg'];
 let pathDays = Routing.generate('days_param_api', true);
 let disabledDates = [];
 let tableDaysConfig = {
@@ -33,18 +31,33 @@ const resetLogos = {
     mailLogo: false,
     nomadeAccueil: false,
     nomadeHeader: false,
-}
+};
+
+const dispatchColorHasChanged = {
+    after: false,
+    DDay: false,
+    before: false
+};
+
+const handlingColorHasChanged = {
+    after: false,
+    DDay: false,
+    before: false
+};
 
 $(function () {
-    Select2.init($('#locationArrivageDest'));
-    Select2.location($('[name=param-default-location-if-custom]'))
-    Select2.location($('[name=param-default-location-if-emergency]'))
-    Select2.init($('#listNaturesColis'));
-    Select2.initFree($('select[name="businessUnit"]'));
-    Select2.initFree($('select[name="dispatchEmergencies"]'));
-    Select2.location($('.ajax-autocomplete-location'));
-    Select2.carrier($('.ajax-autocomplete-transporteur'));
-    Select2.initValues($('#receptionLocation'), $('#receptionLocationValue'));
+    Select2Old.init($('#locationArrivageDest'));
+    Select2Old.init($('select[name=deliveryRequestType]'));
+    Select2Old.location($('[name=param-default-location-if-custom]'));
+    Select2Old.location($('[name=param-default-location-if-emergency]'));
+    Select2Old.init($('#listNaturesColis'));
+    Select2Old.initFree($('select[name="businessUnit"]'));
+    Select2Old.initFree($('select[name="dispatchEmergencies"]'));
+    Select2Old.location($('.ajax-autocomplete-location'));
+    Select2Old.carrier($('.ajax-autocomplete-transporteur'));
+    Select2Old.initValues($('#receptionLocation'), $('#receptionLocationValue'));
+
+    initDeliveryRequestDefaultLocations();
 
     updateImagePreview('#preview-label-logo', '#upload-label-logo');
     updateImagePreview('#preview-emergency-icon', '#upload-emergency-icon');
@@ -77,9 +90,6 @@ $(function () {
         editParamLocations($(this), $('#emergenciesArrivalsLocation'))
     });
 
-    $('#locationDemandeLivraison').on('change', function() {
-        editParamLocations($(this), $('#locationDemandeLivraisonValue'));
-    });
     // config tableau de bord : transporteurs
 
     const inputWorkFreeDayAlreadyAdd = JSON.parse($('#workFreeDays input[type="hidden"][name="already-work-free-days"]').val());
@@ -111,40 +121,10 @@ $(function () {
 });
 
 function initValuesForDashboard() {
-    Select2.initValues($('#locationToTreat'), $('#locationToTreatValue'));
-    Select2.initValues($('#locationWaitingDock'), $( '#locationWaitingDockValue'));
-    Select2.initValues($('#locationWaitingAdmin'), $( '#locationWaitingAdminValue'));
-    Select2.initValues($('#locationAvailable'), $( '#locationAvailableValue'));
-    Select2.initValues($('#locationDropZone'), $( '#locationDropZoneValue'));
-    Select2.initValues($('#locationLitiges'), $( '#locationLitigesValue'));
-    Select2.initValues($('#locationUrgences'), $( '#locationUrgencesValue'));
-    Select2.initValues($('#locationsFirstGraph'), $( '#locationsFirstGraphValue'));
-    Select2.initValues($('#locationsSecondGraph'), $( '#locationsSecondGraphValue'));
-
     // Set location values for arrivals
-    Select2.initValues($('#locationArrivageDest'), $( '#locationArrivageDestValue'));
-    Select2.initValues($('[name=param-default-location-if-custom]'), $( '#customsArrivalsLocation'));
-    Select2.initValues($('[name=param-default-location-if-emergency]'), $( '#emergenciesArrivalsLocation'));
-
-    Select2.initValues($('#locationDemandeLivraison'), $('#locationDemandeLivraisonValue'));
-    Select2.initValues($('#packaging1'), $('#packagingLocation1'));
-    Select2.initValues($('#packaging2'), $('#packagingLocation2'));
-    Select2.initValues($('#packaging3'), $('#packagingLocation3'));
-    Select2.initValues($('#packaging4'), $('#packagingLocation4'));
-    Select2.initValues($('#packaging5'), $('#packagingLocation5'));
-    Select2.initValues($('#packaging6'), $('#packagingLocation6'));
-    Select2.initValues($('#packaging7'), $('#packagingLocation7'));
-    Select2.initValues($('#packaging8'), $('#packagingLocation8'));
-    Select2.initValues($('#packaging9'), $('#packagingLocation9'));
-    Select2.initValues($('#packaging10'), $('#packagingLocation10'));
-    Select2.initValues($('#packagingRPA'), $('#packagingLocationRPA'));
-    Select2.initValues($('#packagingLitige'), $('#packagingLocationLitige'));
-    Select2.initValues($('#packagingKitting'), $( '#packagingLocationKitting'));
-    Select2.initValues($('#packagingUrgence'), $('#packagingLocationUrgence'));
-    Select2.initValues($('#packagingDSQR'), $('#packagingLocationDSQR'));
-    Select2.initValues($('#packagingDestinationGT'), $('#packagingLocationDestinationGT'));
-    Select2.initValues($('#packagingOrigineGT'), $('#packagingLocationOrigineGT'));
-    Select2.initValues($('#carrierDock'), $( '#carrierDockValue'));
+    Select2Old.initValues($('#locationArrivageDest'), $( '#locationArrivageDestValue'));
+    Select2Old.initValues($('[name=param-default-location-if-custom]'), $( '#customsArrivalsLocation'));
+    Select2Old.initValues($('[name=param-default-location-if-emergency]'), $( '#emergenciesArrivalsLocation'));
 }
 
 function updateToggledParam(switchButton) {
@@ -168,7 +148,7 @@ function ajaxMailerServer() {
             showBSAlert('La configuration du serveur mail a bien été mise à jour.', 'success');
         }
     }
-    let data = $('#mailerServerForm').find('.data');
+    let data = $('#mailServerSettings').find('.data');
     let json = {};
     data.each(function () {
         let val = $(this).val();
@@ -187,7 +167,7 @@ function ajaxDims() {
     const $emergencyIconFile = $('#upload-emergency-icon');
 
     let data = new FormData();
-    let dataInputs = $('#dimsForm').find('.data');
+    let dataInputs = $('#labelSettings').find('.data');
     dataInputs.each(function () {
         let val = $(this).attr('type') === 'checkbox' ? $(this).is(':checked') : $(this).val();
         let name = $(this).attr("name");
@@ -283,6 +263,20 @@ function updateStockParam() {
             }
             else {
                 showBSAlert('Erreur, il y a eu un problème lors de la sauvegarde de vos paramètres', 'danger');
+            }
+        });
+}
+
+function updateAppClient() {
+    const appClient = $('select[name=appClient]').val();
+
+    $.post(Routing.generate('toggle_app_client'), JSON.stringify(appClient))
+        .then(data => {
+            if (data.success) {
+                showBSAlert(data.msg, 'success');
+                window.location.reload();
+            } else {
+                showBSAlert(data.msg, 'danger');
             }
         });
 }
@@ -386,7 +380,7 @@ function editParamLocations($select, $inputValue) {
 
 function editReceptionStatus() {
     let path = Routing.generate('edit_status_receptions');
-    let $inputs = $('#paramReceptions').find('.status');
+    let $inputs = $('#receptionSettings').find('.status');
 
     let param = {};
     $inputs.each(function () {
@@ -402,36 +396,6 @@ function editReceptionStatus() {
             showBSAlert("Une erreur est survenue lors de la mise à jour des statuts de réception.", 'danger');
         }
     });
-}
-
-
-function updateImagePreview(preview, upload) {
-    let $upload = $(upload)[0];
-
-    $(upload).change(() => {
-        if ($upload.files && $upload.files[0]) {
-            let fileNameWithExtension = $upload.files[0].name.split('.');
-            let extension = fileNameWithExtension[fileNameWithExtension.length - 1];
-
-            if ($upload.files[0].size < maxSizeFileAllowed) {
-
-                if (allowedLogoExtensions.indexOf(extension) !== -1) {
-                        let reader = new FileReader();
-                        reader.onload = function (e) {
-                            $(preview)
-                                .attr('src', e.target.result)
-                                .removeClass('d-none');
-                        };
-
-                        reader.readAsDataURL($upload.files[0]);
-                    } else {
-                        showBSAlert('Veuillez choisir une image valide (png, jpeg, jpg, svg).', 'danger')
-                    }
-                } else {
-                    showBSAlert('La taille du fichier est supérieure à 10 mo.', 'danger')
-                }
-        }
-    })
 }
 
 function addWorkFreeDay($button) {
@@ -481,24 +445,31 @@ function deleteWorkFreeDay(id, date) {
 }
 
 function saveDispatchesParam() {
-    const $overconsumptionLogo = $('#upload-overconsumption-logo');
+    const $form = $('#dispatchSettings');
+
+    const $overconsumptionLogo = $form.find('#upload-overconsumption-logo');
 
     let data = new FormData();
     if ($overconsumptionLogo[0].files && $overconsumptionLogo[0].files[0]) {
         data.append("overconsumption-logo", $overconsumptionLogo[0].files[0]);
     }
 
+
+    const $expectedDateColorAfter = $form.find('[name="expectedDateColorAfter"]');
+    const $expectedDateColorDDay = $form.find('[name="expectedDateColorDDay"]');
+    const $expectedDateColorBefore = $form.find('[name="expectedDateColorBefore"]');
+
     Promise.all([
-        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_CARRIER', val: $('[name="waybillCarrier"]').val()})),
-        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_CONSIGNER', val: $('[name="waybillConsigner"]').val()})),
-        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_RECEIVER', val: $('[name="waybillReceiver"]').val()})),
-        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_LOCATION_FROM', val: $('[name="waybillLocationFrom"]').val()})),
-        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_LOCATION_TO', val: $('[name="waybillLocationTo"]').val()})),
-        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_CONTACT_PHONE_OR_MAIL', val: $('[name="waybillContactPhoneMail"]').val()})),
-        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_CONTACT_NAME', val: $('[name="waybillContactName"]').val()})),
+        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_CARRIER', val: $form.find('[name="waybillCarrier"]').val()})),
+        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_CONSIGNER', val: $form.find('[name="waybillConsigner"]').val()})),
+        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_RECEIVER', val: $form.find('[name="waybillReceiver"]').val()})),
+        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_LOCATION_FROM', val: $form.find('[name="waybillLocationFrom"]').val()})),
+        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_LOCATION_TO', val: $form.find('[name="waybillLocationTo"]').val()})),
+        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_CONTACT_PHONE_OR_MAIL', val: $form.find('[name="waybillContactPhoneMail"]').val()})),
+        $.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_WAYBILL_CONTACT_NAME', val: $form.find('[name="waybillContactName"]').val()})),
         $.post(Routing.generate('toggle_params'), JSON.stringify({
             param: 'DISPATCH_OVERCONSUMPTION_BILL_TYPE_AND_STATUS',
-            val: $('[name="overconsumptionBillType"]').val() + ';' + $('[name="overconsumptionBillStatut"]').val()
+            val: $('[name="overconsumptionBillType"]').val() + ';' + $form.find('[name="overconsumptionBillStatut"]').val()
         })),
         $.ajax(Routing.generate('edit_overconsumption_logo'), {
             data: data,
@@ -507,6 +478,15 @@ function saveDispatchesParam() {
             processData: false,
             dataType: 'json',
         }),
+        ...(dispatchColorHasChanged.after
+            ? [$.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_EXPECTED_DATE_COLOR_AFTER', val: $expectedDateColorAfter.val()}))]
+            : []),
+        ...(dispatchColorHasChanged.DDay
+            ? [$.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_EXPECTED_DATE_COLOR_D_DAY', val: $expectedDateColorDDay.val()}))]
+            : []),
+        ...(dispatchColorHasChanged.before
+            ? [$.post(Routing.generate('toggle_params'), JSON.stringify({param: 'DISPATCH_EXPECTED_DATE_COLOR_BEFORE', val: $expectedDateColorBefore.val()}))]
+            : [])
     ])
         .then((res) => {
             if (res.every((success) => success)) {
@@ -538,4 +518,224 @@ function onResetLogoClicked($button) {
     const name = $button.data('name');
     resetLogos[name] = true;
 
+}
+
+function saveHandlingParams() {
+    const $form = $('#handlingSettings');
+
+    const $removeHoursDateTimeSwitch = $form.find('[name="removeHoursDateTime"]');
+    const $expectedDateColorAfter = $form.find('[name="expectedDateColorAfter"]');
+    const $expectedDateColorDDay = $form.find('[name="expectedDateColorDDay"]');
+    const $expectedDateColorBefore = $form.find('[name="expectedDateColorBefore"]');
+
+    Promise.all([
+        $.post(Routing.generate('toggle_params', true), JSON.stringify({val: $removeHoursDateTimeSwitch.is(':checked'), param: $removeHoursDateTimeSwitch.data('param')})),
+        ...(handlingColorHasChanged.after
+            ? [$.post(Routing.generate('toggle_params'), JSON.stringify({param: 'HANDLING_EXPECTED_DATE_COLOR_AFTER', val: $expectedDateColorAfter.val()}))]
+            : []),
+        ...(handlingColorHasChanged.DDay
+            ? [$.post(Routing.generate('toggle_params'), JSON.stringify({param: 'HANDLING_EXPECTED_DATE_COLOR_D_DAY', val: $expectedDateColorDDay.val()}))]
+            : []),
+        ...(handlingColorHasChanged.before
+            ? [$.post(Routing.generate('toggle_params'), JSON.stringify({param: 'HANDLING_EXPECTED_DATE_COLOR_BEFORE', val: $expectedDateColorBefore.val()}))]
+            : [])
+    ]).then(function (responses) {
+        if (responses.every(result => result)) {
+            showBSAlert('La modification du paramétrage a bien été prise en compte.', 'success');
+        } else {
+            showBSAlert('Une erreur est survenue lors de la modification du paramétrage.', 'danger');
+        }
+    });
+}
+
+function saveEmergencyTriggeringFields() {
+    const $select = $(`select[name="arrival-emergency-triggering-fields"]`);
+    const value = $select.val() || [];
+
+    if(value.length === 0) {
+        showBSAlert(`Au moins un champ déclencheur d'urgence doit être renseigné`, `danger`);
+    } else {
+        editMultipleSelect($select, `ARRIVAL_EMERGENCY_TRIGGERING_FIELDS`);
+    }
+}
+
+function editMultipleSelect($select, paramName) {
+    const val = $select.val() || [];
+    const valStr = JSON.stringify(val);
+    $.post(Routing.generate('toggle_params'), JSON.stringify({param: paramName, val: valStr})).then((resp) => {
+        if (resp) {
+            showBSAlert("La valeur a bien été mise à jour", "success");
+        } else {
+            showBSAlert("Une erreur est survenue lors de la mise à jour de la valeur", "success");
+        }
+    })
+}
+
+function newTypeAssociation($button, type = undefined, location = undefined) {
+    const $settingTypeAssociation = $(`.setting-type-association`);
+    const $typeTemplate = $(`#type-template`);
+
+    let allFilledSelect = true;
+    $settingTypeAssociation.find(`select[name=deliveryRequestLocation]`).each(function() {
+        if(!$(this).val()) {
+            allFilledSelect = false;
+        }
+    });
+
+    if (allFilledSelect) {
+        $button.prop(`disabled`, true);
+        $settingTypeAssociation.append($typeTemplate.html());
+
+        const $typeSelect = $settingTypeAssociation.last().find(`select[name=deliveryRequestType]`);
+        const $locationSelect = $settingTypeAssociation.last().find(`select[name=deliveryRequestLocation]`);
+
+        if (type && location) {
+            appendSelectOptions($typeSelect, $locationSelect, type, location);
+        } else if (location) {
+            let type = {
+                id: 'all',
+                label: 'Tous les types'
+            }
+            appendSelectOptions($typeSelect, $locationSelect, type, location);
+        } else {
+            Select2Old.init($settingTypeAssociation.find('select[name=deliveryRequestType]'), '', 0, {
+                route: `get_unique_types`,
+                param: {
+                    types: getAlreadyDefinedTypes()
+                }
+            });
+
+            Select2Old.init($settingTypeAssociation.last().find(`select[name=deliveryRequestLocation]`), ``, 1, {
+                route: `get_locations_by_type`,
+                param: {
+                    type: $typeSelect.val()
+                }
+            });
+        }
+    } else {
+        showBSAlert(`Tous les emplacements doivent être renseignés`, `warning`);
+    }
+}
+
+function onTypeChange($select) {
+    const $settingTypeAssociation = $select.closest('.setting-type-association');
+    const $newTypeAssociationButton = $('.new-type-association-button');
+    const $allTypeSelect = $settingTypeAssociation.find(`select[name=deliveryRequestType]`);
+
+    const $typeAssociationContainer = $select.closest('.type-association-container');
+    const $associatedLocation = $typeAssociationContainer.find('select[name="deliveryRequestLocation"]');
+    $associatedLocation.val(null).trigger('change');
+
+    $.get(Routing.generate(`get_unique_types`, {types: getAlreadyDefinedTypes()})).then((data) => {
+
+        let allFilledSelect = true;
+        $allTypeSelect.each(function() {
+            if(!$(this).val()) {
+                allFilledSelect = false;
+            }
+        });
+
+        Select2Old.init($allTypeSelect, '', 0, {
+            route: `get_unique_types`,
+            param: {
+                types: getAlreadyDefinedTypes()
+            }
+        });
+
+        if($select.val() === `all` || data.results.length === 0 || !allFilledSelect) {
+            $newTypeAssociationButton.prop(`disabled`, true);
+        } else {
+            $newTypeAssociationButton.prop(`disabled`, false);
+            Select2Old.init($settingTypeAssociation.find(`select[name=deliveryRequestLocation]`), '', 1, {
+                route: `get_locations_by_type`,
+                param: {
+                    type: $select.val()
+                }
+            });
+        }
+    });
+}
+
+function removeAssociationLine($button) {
+    const $typeAssociationContainer = $('.type-association-container');
+
+    if($typeAssociationContainer.length === 1) {
+        showBSAlert('Au moins une association type/emplacement est nécessaire', 'warning')
+    } else {
+        $button.prev(`.type-association-container`).remove();
+        $button.closest(`div`).remove();
+        $('.new-type-association-button').prop(`disabled`, false);
+    }
+}
+
+function updateDeliveryRequestDefaultLocations() {
+    const $selectTypes = $(`select[name=deliveryRequestType]`);
+    const $selectLocations = $(`select[name=deliveryRequestLocation]`);
+
+    const types = [];
+    let filledSelectTypes = true;
+    $selectTypes.each(function() {
+        if(!$(this).val()) {
+            filledSelectTypes = false;
+        } else {
+            types.push($(this).val());
+        }
+    });
+
+    const locations = [];
+    let filledSelectLocations = true;
+    $selectLocations.each(function() {
+        if(!$(this).val()) {
+            filledSelectLocations = false;
+        } else {
+            locations.push($(this).val());
+        }
+    });
+
+    if(!filledSelectLocations) {
+        showBSAlert(`Tous les emplacements doivent être renseignés`, `warning`);
+    } else if(!filledSelectTypes) {
+        showBSAlert(`Tous les types doivent être renseignés`, `warning`);
+    } else {
+        const path = Routing.generate(`update_delivery_request_default_locations`, true);
+        const params = JSON.stringify({types: types, locations: locations});
+
+        $.post(path, params, (data) => {
+            if (data.success) {
+                showBSAlert(`Les emplacements de livraison par défaut ont bien été mis à jour.`, `success`);
+            } else {
+                showBSAlert(`Une erreur est survenue lors de l'enregistrement des emplacements de livraison par défaut.`, `danger`);
+            }
+        });
+    }
+}
+
+function getAlreadyDefinedTypes() {
+    const $settingTypeAssociation = $('.setting-type-association');
+
+    let types = [];
+    $settingTypeAssociation.find(`select[name=deliveryRequestType]`).each(function() {
+        types.push($(this).val());
+    });
+
+    return types;
+}
+
+function initDeliveryRequestDefaultLocations() {
+    const $deliveryTypeSettings = $(`input[name=deliveryTypeSettings]`);
+    const deliveryTypeSettingsValues = JSON.parse($deliveryTypeSettings.val());
+
+    deliveryTypeSettingsValues.forEach(item => {
+        newTypeAssociation($(`button.new-type-association-button`), item.type, item.location);
+    });
+}
+
+function appendSelectOptions(typeSelect, locationSelect, type, location) {
+    typeSelect
+        .append(new Option(type.label, type.id, false, true))
+        .trigger(`change`);
+
+    locationSelect
+        .append(new Option(location.label, location.id, false, true))
+        .trigger(`change`);
 }

@@ -14,9 +14,12 @@ import 'arrive';
 import BrowserSupport from './support';
 import Wiistock from './general';
 import {LOADING_CLASS, wrapLoadingOnActionButton} from './loading';
-import './tooltips';
 
 import '../scss/app.scss';
+
+import './tooltips';
+import './select2';
+import './modals-commons'
 
 ///////////////// Main
 
@@ -38,6 +41,10 @@ function importWiistock() {
 
 function importJquery() {
     global.$ = global.jQuery = $;
+
+    jQuery.fn.exists = function() {
+        return this.length !== 0;
+    }
 }
 
 function importChart() {
@@ -86,7 +93,7 @@ $(document).ready(() => {
                 window.location.reload();
             }
         })
-    }, 30 * 60 * 1000 + 30 * 1000); //every 30 minutes and 30 seconds
+    }, 30 * 60 * 1000 + 60 * 1000); //every 30 minutes and 30 seconds
 
     //custom datetimepickers for firefox
     if (!BrowserSupport.input("datetime-local")) {

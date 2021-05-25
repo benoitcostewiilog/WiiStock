@@ -19,97 +19,116 @@ class Emplacement
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    private $id;
+    private ?int $id = null;
 
     /**
      * @ORM\Column(type="string", length=255, unique=true)
      */
-    private $label;
-
-    /**
-     * @ORM\OneToMany(targetEntity="App\Entity\Livraison", mappedBy="destination")
-     */
-    private $livraisons;
-
-    /**
-     * @ORM\OneToMany(targetEntity="App\Entity\Demande", mappedBy="destination")
-     */
-    private $demandes;
-
-    /**
-     * @ORM\OneToMany(targetEntity="App\Entity\Collecte", mappedBy="pointCollecte")
-     */
-    private $collectes;
+    private ?string $label = null;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
-    private $description;
+    private ?string $description = null;
+
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\Livraison", mappedBy="destination")
+     */
+    private Collection $livraisons;
+
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\Demande", mappedBy="destination")
+     */
+    private Collection $demandes;
+
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\Collecte", mappedBy="pointCollecte")
+     */
+    private Collection $collectes;
 
     /**
      * @ORM\OneToMany(targetEntity="App\Entity\Article", mappedBy="emplacement")
      */
-    private $articles;
+    private Collection $articles;
 
     /**
      * @ORM\OneToMany(targetEntity="App\Entity\ReferenceArticle", mappedBy="emplacement")
      */
-    private $referenceArticles;
+    private Collection $referenceArticles;
 
     /**
      * @ORM\Column(type="boolean", nullable=true)
      */
-    private $isDeliveryPoint;
+    private ?bool $isDeliveryPoint = null;
+
+    /**
+     * @ORM\Column(type="boolean", nullable=false, options={"default": false})
+     */
+    private ?bool $isOngoingVisibleOnMobile = null;
 
 	/**
 	 * @ORM\Column(type="boolean", nullable=false, options={"default": true})
 	 */
-    private $isActive;
+    private ?bool $isActive = null;
 
     /**
      * @ORM\Column(type="string", nullable=true)
      */
-    private $dateMaxTime;
+    private ?string $dateMaxTime = null;
 
     /**
      * @ORM\OneToMany(targetEntity="App\Entity\Utilisateur", mappedBy="dropzone")
      */
-    private $utilisateurs;
+    private Collection $utilisateurs;
 
     /**
      * @ORM\ManyToMany(targetEntity="App\Entity\Nature", inversedBy="emplacements")
      */
-    private $allowedNatures;
+    private Collection $allowedNatures;
 
     /**
      * @ORM\OneToMany(targetEntity="App\Entity\Dispatch", mappedBy="locationFrom")
      */
-    private $dispatchesFrom;
+    private Collection $dispatchesFrom;
 
     /**
      * @ORM\OneToMany(targetEntity="App\Entity\Dispatch", mappedBy="locationTo")
      */
-    private $dispatchesTo;
+    private Collection $dispatchesTo;
 
     /**
      * @ORM\OneToMany(targetEntity=Type::class, mappedBy="dropLocation")
      */
-    private $dropTypes;
+    private Collection $dropTypes;
 
     /**
      * @ORM\OneToMany(targetEntity=Type::class, mappedBy="pickLocation")
      */
-    private $pickTypes;
+    private Collection $pickTypes;
 
     /**
-     * @var Collection
      * @ORM\ManyToMany(targetEntity=LocationCluster::class, mappedBy="locations")
      */
-    private $clusters;
+    private Collection $clusters;
 
+    /**
+     * @ORM\OneToMany(targetEntity=Arrivage::class, mappedBy="dropLocation")
+     */
+    private Collection $arrivals;
 
-    public function __construct()
-    {
+    /**
+     * @ORM\ManyToMany(targetEntity=Type::class)
+     * @ORM\JoinTable(name="location_allowed_delivery_type")
+     */
+    private Collection $allowedDeliveryTypes;
+
+    /**
+     * @ORM\ManyToMany(targetEntity=Type::class)
+     * @ORM\JoinTable(name="location_allowed_collect_type")
+     */
+    private Collection $allowedCollectTypes;
+
+    public function __construct() {
         $this->clusters = new ArrayCollection();
         $this->articles = new ArrayCollection();
         $this->livraisons = new ArrayCollection();
@@ -123,6 +142,9 @@ class Emplacement
         $this->dispatchesTo = new ArrayCollection();
         $this->dropTypes = new ArrayCollection();
         $this->pickTypes = new ArrayCollection();
+        $this->arrivals = new ArrayCollection();
+        $this->allowedDeliveryTypes = new ArrayCollection();
+        $this->allowedCollectTypes = new ArrayCollection();
     }
 
     public function getId(): ? int
@@ -322,6 +344,17 @@ class Emplacement
     {
         $this->isDeliveryPoint = $isDeliveryPoint;
 
+        return $this;
+    }
+
+    public function isOngoingVisibleOnMobile(): ?bool
+    {
+        return $this->isOngoingVisibleOnMobile;
+    }
+
+    public function setIsOngoingVisibleOnMobile(?bool $isOngoingVisibleOnMobile): self
+    {
+        $this->isOngoingVisibleOnMobile = $isOngoingVisibleOnMobile;
         return $this;
     }
 
@@ -563,4 +596,105 @@ class Emplacement
         }
         return $this;
     }
+
+    /**
+     * @return Collection|Arrivage[]
+     */
+    public function getArrivals(): Collection
+    {
+        return $this->arrivals;
+    }
+
+    public function addArrival(Arrivage $arrival): self
+    {
+        if (!$this->arrivals->contains($arrival)) {
+            $this->arrivals[] = $arrival;
+            $arrival->setDropLocation($this);
+        }
+
+        return $this;
+    }
+
+    public function removeArrival(Arrivage $arrival): self
+    {
+        if ($this->arrivals->contains($arrival)) {
+            $this->arrivals->removeElement($arrival);
+            // set the owning side to null (unless already changed)
+            if ($arrival->getDropLocation() === $this) {
+                $arrival->setDropLocation(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|Type[]
+     */
+    public function getAllowedDeliveryTypes(): Collection {
+        return $this->allowedDeliveryTypes;
+    }
+
+    public function addAllowedDeliveryType(Type $allowedDeliveryType): self {
+        if (!$this->allowedDeliveryTypes->contains($allowedDeliveryType)) {
+            $this->allowedDeliveryTypes[] = $allowedDeliveryType;
+        }
+
+        return $this;
+    }
+
+    public function removeAllowedDeliveryType(Type $allowedDeliveryType): self {
+        $this->allowedDeliveryTypes->removeElement($allowedDeliveryType);
+
+        return $this;
+    }
+
+    public function setAllowedDeliveryTypes(?array $allowedDeliveryTypes): self {
+        foreach($this->getAllowedDeliveryTypes()->toArray() as $allowedDeliveryType) {
+            $this->removeAllowedDeliveryType($allowedDeliveryType);
+        }
+
+        $this->allowedDeliveryTypes = new ArrayCollection();
+        foreach($allowedDeliveryTypes as $allowedDeliveryType) {
+            $this->addAllowedDeliveryType($allowedDeliveryType);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|Type[]
+     */
+    public function getAllowedCollectTypes(): Collection {
+        return $this->allowedCollectTypes;
+    }
+
+    public function addAllowedCollectType(Type $allowedCollectType): self {
+        if (!$this->allowedCollectTypes->contains($allowedCollectType)) {
+            $this->allowedCollectTypes[] = $allowedCollectType;
+        }
+
+        return $this;
+    }
+
+    public function removeAllowedCollectType(Type $allowedCollectType): self {
+        $this->allowedCollectTypes->removeElement($allowedCollectType);
+
+        return $this;
+    }
+
+    public function setAllowedCollectTypes(?array $allowedCollectTypes): self {
+        foreach($this->getAllowedCollectTypes()->toArray() as $allowedCollectType) {
+            $this->removeAllowedCollectType($allowedCollectType);
+        }
+
+        $this->allowedCollectTypes = new ArrayCollection();
+        foreach($allowedCollectTypes as $allowedCollectType) {
+            $this->addAllowedCollectType($allowedCollectType);
+        }
+
+        return $this;
+    }
+
+
 }

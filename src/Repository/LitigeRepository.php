@@ -7,7 +7,6 @@ use App\Entity\LitigeHistoric;
 use App\Helper\QueryCounter;
 use DateTime;
 use Doctrine\ORM\EntityRepository;
-use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
 use Exception;
 use Generator;
@@ -24,6 +23,7 @@ class LitigeRepository extends EntityRepository
 		'type' => 'type',
 		'arrivalNumber' => 'numeroArrivage',
 		'provider' => 'provider',
+        'receptionNumber' => 'numeroReception',
 		'numCommandeBl' => 'numCommandeBl',
         'buyers' => 'acheteurs',
         'declarant' => 'declarant',
@@ -386,7 +386,7 @@ class LitigeRepository extends EntityRepository
                             $qb->addOrderBy('declarant.username', $order);
                         } else if ($column === 'numeroArrivage') {
                             $qb->addOrderBy('a.numeroArrivage', $order);
-                        } else if ($column === 'receptionNumber') {
+                        } else if ($column === 'numeroReception') {
                             $qb->addOrderBy('r.number', $order);
                         } else if ($column === 'provider') {
                             $qb->addOrderBy('provider', $order);
@@ -481,6 +481,7 @@ class LitigeRepository extends EntityRepository
             ->select('dispute.numeroLitige')
             ->where('dispute.numeroLitige LIKE :value')
             ->orderBy('dispute.creationDate', 'DESC')
+            ->addOrderBy('dispute.numeroLitige', 'DESC')
             ->setParameter('value', $prefix . '-' . $date . '%')
             ->getQuery()
             ->execute();

@@ -8,7 +8,7 @@
         <strong>{{ handling.number }}</strong>
     </div>
     <div>Date demande :
-        <strong>{{ handling.creationDate|date('Y-m-d à H:i:s') }}</strong>
+        <strong>{{ handling.creationDate ? handling.creationDate|date('d/m/Y à H:i:s') }}</strong>
     </div>
     <div>Type :
         <strong>{{ handling.type.label }}</strong>
@@ -16,20 +16,33 @@
     <div>Demandeur :
         <strong>{{ handling.requester.username }}</strong>
     </div>
-    <div>Objet :
+    {% set fieldCodeReceiversHandling = constant('App\\Entity\\FieldsParam::FIELD_CODE_RECEIVERS_HANDLING') %}
+    {% if (fieldsParam|isFieldRequired(fieldCodeReceiversHandling, 'displayedFormsCreate')
+        or fieldsParam|isFieldRequired(fieldCodeReceiversHandling, 'displayedFormsEdit')
+        or fieldsParam|isFieldRequired(fieldCodeReceiversHandling, 'displayedFilters')) %}
+        <div>
+            Destinataire(s) :
+            <strong>{{ handling.receivers|map(receiver => receiver.username)|join(', ') }}</strong>
+        </div>
+    {% endif %}
+    <div> {{ isCurrentClient(constant('App\\Service\\SpecificService::CLIENT_COLLINS_SOA')) ?  'services.Objet'|trans  ~':' : 'Objet :'  }}
         <strong>{{ handling.subject }}</strong>
     </div>
-    <div>Chargement :
-        <strong>{{ handling.source }}</strong>
-    </div>
-    <div>Déchargement :
-        <strong>{{ handling.destination }}</strong>
-    </div>
+
+    {% if not isCurrentClient(constant('App\\Service\\SpecificService::CLIENT_COLLINS_SOA')) %}
+        <div>Chargement :
+            <strong>{{ handling.source }}</strong>
+        </div>
+        <div>Déchargement :
+            <strong>{{ handling.destination }}</strong>
+        </div>
+    {% endif %}
+
     <div>Date attendue :
-        <strong>{{ handling.desiredDate|date('Y-m-d à H:i:s') }}</strong>
+        <strong>{{ handling.desiredDate ? handling.desiredDate|date(viewHoursOnExpectedDate ? 'd/m/Y à H:i:s' : 'd/m/Y') }}</strong>
     </div>
     <div>Date de réalisation :
-        <strong>{{ handling.validationDate|date('Y-m-d à H:i:s') }}</strong>
+        <strong>{{ handling.validationDate ? handling.validationDate|date('d/m/Y à H:i:s') }}</strong>
     </div>
     <div>Statut :
         <strong>{{ handling.status.nom }}</strong>
@@ -37,18 +50,20 @@
     <div>Urgence :
         <strong>{{ emergency }}</strong>
     </div>
-    <div>Nombre d'opération(s) réalisée(s) :
+
+    <div>{{ 'services.Nombre d\'opération(s) réalisée(s)' | trans }}
         <strong>{{ handling.carriedOutOperationCount }}</strong>
     </div>
-    <div>Traité par :
+    <div>Modifié par :
         <strong>{{ treatedBy }}</strong>
     </div>
-{#    <div>Temps de traitement opérateur :#}
-{#        <strong>{{ handling.treatmentDelay ? handling.treatmentDelay|date('H\\h i\\m s\\s') : '' }}</strong>#}
-{#    </div>#}
-    {% if (handling.comment is not empty and handling.comment != '<p><br></p>') %}
-        <div>Commentaire : {{ handling.comment|raw }}</div>
-    {% endif %}
+
+
+        {% if (handling.comment is not empty and handling.comment != '<p><br></p>') %}
+            <div>Commentaire : {{ handling.comment|raw }}</div>
+        {% endif %}
+
+
     <div>
         Pièces jointes :
         <ul>

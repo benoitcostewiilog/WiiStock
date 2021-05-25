@@ -5,11 +5,15 @@ namespace App\Service;
 
 
 use App\Entity\Action;
+use App\Entity\FieldsParam;
 use App\Entity\FiltreSup;
 use App\Entity\Handling;
 use App\Entity\Menu;
+use App\Entity\ParametrageGlobal;
 use App\Entity\Statut;
 use App\Entity\Utilisateur;
+use App\Helper\FormatHelper;
+use WiiCommon\Helper\Stream;
 use DateTime;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Twig\Environment as Twig_Environment;
@@ -66,6 +70,9 @@ class HandlingService
     {
         $filtreSupRepository = $this->entityManager->getRepository(FiltreSup::class);
         $handlingRepository = $this->entityManager->getRepository(Handling::class);
+        $parametrageGlobalRepository = $this->entityManager->getRepository(ParametrageGlobal::class);
+
+        $includeDesiredTime = !$parametrageGlobalRepository->getOneParamByLabel(ParametrageGlobal::REMOVE_HOURS_DATETIME);
 
         if ($statusFilter) {
             $filters = [
@@ -84,7 +91,7 @@ class HandlingService
 
         $rows = [];
         foreach ($handlingArray as $handling) {
-            $rows[] = $this->dataRowHandling($handling);
+            $rows[] = $this->dataRowHandling($handling, $includeDesiredTime);
         }
 
         return [
@@ -96,26 +103,29 @@ class HandlingService
 
     /**
      * @param Handling $handling
+     * @param bool $includeDesiredTime
      * @return array
      * @throws LoaderError
      * @throws RuntimeError
      * @throws SyntaxError
      */
-    public function dataRowHandling(Handling $handling)
+    public function dataRowHandling(Handling $handling, bool $includeDesiredTime = true)
     {
 //        $treatmentDelay = $handling->getTreatmentDelay();
 //        $treatmentDelayInterval = $treatmentDelay ? $this->dateService->secondsToDateInterval($treatmentDelay) : null;
 //        $treatmentDelayStr = $treatmentDelayInterval ? $this->dateService->intervalToStr($treatmentDelayInterval) : '';
-
         return [
             'id' => $handling->getId() ? $handling->getId() : 'Non défini',
             'number' => $handling->getNumber() ? $handling->getNumber() : '',
-            'creationDate' => $handling->getCreationDate() ? $handling->getCreationDate()->format('d/m/Y H:i:s') : null,
+            'creationDate' => FormatHelper::datetime($handling->getCreationDate()),
             'type' => $handling->getType() ? $handling->getType()->getLabel() : '',
             'requester' => $handling->getRequester() ? $handling->getRequester()->getUserName() : null,
             'subject' => $handling->getSubject() ? $handling->getSubject() : '',
-            'desiredDate' => $handling->getDesiredDate() ? $handling->getDesiredDate()->format('d/m/Y H:i:s') : null,
-            'validationDate' => $handling->getValidationDate() ? $handling->getValidationDate()->format('d/m/Y H:i:s') : null,
+            "receivers" => FormatHelper::users($handling->getReceivers()->toArray()),
+            'desiredDate' => $includeDesiredTime
+                ? FormatHelper::datetime($handling->getDesiredDate())
+                : FormatHelper::date($handling->getDesiredDate()),
+            'validationDate' => FormatHelper::datetime($handling->getValidationDate()),
             'status' => $handling->getStatus()->getNom() ? $handling->getStatus()->getNom() : null,
             'emergency' => $handling->getEmergency() ?? '',
             'treatedBy' => $handling->getTreatedByHandling() ? $handling->getTreatedByHandling()->getUsername() : '',
@@ -128,67 +138,54 @@ class HandlingService
     }
 
     /**
+     * @param EntityManagerInterface $entityManager
      * @param Handling $handling
      * @param bool $isNewHandlingAndNotTreated
+     * @param bool $viewHoursOnExpectedDate
      * @throws LoaderError
      * @throws RuntimeError
      * @throws SyntaxError
      */
-    public function sendEmailsAccordingToStatus(Handling $handling, $isNewHandlingAndNotTreated = false): void {
-        $requester = $handling->getRequester();
-        $emails = $requester ? $requester->getMainAndSecondaryEmails() : [];
-        if (!empty($emails)) {
-            $status = $handling->getStatus();
-            if ($status && $status->getSendNotifToDeclarant()) {
-                $statusTreated = $status->isTreated();
-                if ($isNewHandlingAndNotTreated) {
-                    $subject = $this->translator->trans('services.Création d\'une demande de service');
-                    $title = $this->translator->trans('services.Votre demande de service a été créée') . '.';
-                } else {
-                    $subject = $statusTreated
-                        ? $this->translator->trans('services.Demande de service effectuée')
-                        : $this->translator->trans('services.Changement de statut d\'une demande de service');
-                    $title = $statusTreated
-                        ? $this->translator->trans('services.Votre demande de service a bien été effectuée') . '.'
-                        : $this->translator->trans('services.Une demande de service vous concernant a changé de statut') . '.';
-                }
-                $this->mailerService->sendMail(
-                    'FOLLOW GT // ' . $subject,
-                    $this->templating->render('mails/contents/mailHandlingTreated.html.twig', [
-                        'handling' => $handling,
-                        'title' => $title
-                    ]),
-                    $emails
-                );
+    public function sendEmailsAccordingToStatus(EntityManagerInterface $entityManager,
+                                                Handling $handling,
+                                                $viewHoursOnExpectedDate = false,
+                                                $isNewHandlingAndNotTreated = false): void {
+        $status = $handling->getStatus();
+        $requester = $status->getSendNotifToDeclarant() ? $handling->getRequester() : null;
+        $receivers = $status->getSendNotifToRecipient() ? $handling->getReceivers() : [];
+
+        $emailReceivers = Stream::from($receivers, [$requester])
+            ->unique()
+            ->toArray();
+
+        if (!empty($emailReceivers)) {
+            $statusTreated = $status->isTreated();
+            if ($isNewHandlingAndNotTreated) {
+                $subject = $this->translator->trans('services.Création d\'une demande de service');
+                $title = $this->translator->trans('services.Votre demande de service a été créée') . '.';
+            } else {
+                $subject = $statusTreated
+                    ? $this->translator->trans('services.Demande de service effectuée')
+                    : $this->translator->trans('services.Changement de statut d\'une demande de service');
+                $title = $statusTreated
+                    ? $this->translator->trans('services.Votre demande de service a bien été effectuée') . '.'
+                    : $this->translator->trans('services.Une demande de service vous concernant a changé de statut') . '.';
             }
+
+            $fieldsParamRepository = $entityManager->getRepository(FieldsParam::class);
+            $fieldsParam = $fieldsParamRepository->getByEntity(FieldsParam::ENTITY_CODE_HANDLING);
+
+            $this->mailerService->sendMail(
+                'FOLLOW GT // ' . $subject,
+                $this->templating->render('mails/contents/mailHandlingTreated.html.twig', [
+                    'handling' => $handling,
+                    'title' => $title,
+                    'fieldsParam' => $fieldsParam,
+                    'viewHoursOnExpectedDate' => $viewHoursOnExpectedDate
+                ]),
+                $emailReceivers
+            );
         }
-    }
-
-    public function createHandlingNumber(EntityManagerInterface $entityManager,
-                                         DateTime $date): string {
-
-        $handlingRepository = $entityManager->getRepository(Handling::class);
-
-        $dateStr = $date->format('Ymd');
-
-        $lastHandlingNumber = $handlingRepository->getLastHandlingNumberByPrefix(Handling::PREFIX_NUMBER . $dateStr);
-
-        if ($lastHandlingNumber) {
-            $lastCounter = (int) substr($lastHandlingNumber, -4, 4);
-            $currentCounter = ($lastCounter + 1);
-        }
-        else {
-            $currentCounter = 1;
-        }
-
-        $currentCounterStr = (
-        $currentCounter < 10 ? ('000' . $currentCounter) :
-            ($currentCounter < 100 ? ('00' . $currentCounter) :
-                ($currentCounter < 1000 ? ('0' . $currentCounter) :
-                    $currentCounter))
-        );
-
-        return (Handling::PREFIX_NUMBER . $dateStr . $currentCounterStr);
     }
 
     /**
@@ -198,13 +195,7 @@ class HandlingService
      * @return array
      * @throws \Exception
      */
-    public function parseRequestForCard(Handling $handling, DateService $dateService, array $averageRequestTimesByType, ?int $mode = null) {
-        if(!$mode || $mode !== DashboardSettingsService::MODE_EXTERNAL) {
-            $hasRightHandling = $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_HAND);
-        } else {
-            $hasRightHandling = false;
-        }
-
+    public function parseRequestForCard(Handling $handling, DateService $dateService, array $averageRequestTimesByType) {
         $requestStatus = $handling->getStatus() ? $handling->getStatus()->getNom() : '';
         $requestBodyTitle = !empty($handling->getSubject())
             ? $handling->getSubject() . (!empty($handling->getType())
@@ -213,9 +204,7 @@ class HandlingService
             : '';
         $state = $handling->getStatus() ? $handling->getStatus()->getState() : null;
 
-        if ($hasRightHandling) {
-            $href = $this->router->generate('handling_index') . '?open-modal=edit&modal-edit-id=' . $handling->getId();
-        }
+        $href = $this->router->generate('handling_index') . '?open-modal=edit&modal-edit-id=' . $handling->getId();
 
         $typeId = $handling->getType() ? $handling->getType()->getId() : null;
         $averageTime = $averageRequestTimesByType[$typeId] ?? null;
@@ -267,7 +256,7 @@ class HandlingService
             'requestUser' => $handling->getRequester() ? $handling->getRequester()->getUsername() : 'Non défini',
             'cardColor' => 'darkWhite',
             'bodyColor' => 'lightGrey',
-            'topRightIcon' => $handling->getEmergency() ? 'fa-exclamation-triangle red' : 'livreur.svg',
+            'topRightIcon' => $handling->getEmergency() ? '' : 'livreur.svg',
             'emergencyText' => $handling->getEmergency() ?? '',
             'progress' =>  $statusesToProgress[$state] ?? 0,
             'progressBarColor' => '#2ec2ab',

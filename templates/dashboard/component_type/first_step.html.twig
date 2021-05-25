@@ -22,6 +22,7 @@
             <div class="modal-body form">
                 <input type="hidden" name="rowIndex" value/>
                 <input type="hidden" name="columnIndex" value/>
+                <input type="hidden" name="direction" value/>
                 <input type="hidden" name="cellIndex" value/>
 
                 <div class="d-flex">
@@ -42,6 +43,7 @@
                                          data-component-type-name="{{ componentType.name }}"
                                          data-component-meter-key="{{ componentType.meterKey }}"
                                          data-component-template="{{ componentType.template }}"
+                                         data-component-in-split-cell="{{ componentType.inSplitCell ? 1 : 0 }}"
                                          onclick="openModalComponentTypeNextStep($(this))">
                                         <span class="m-auto">{{ componentType.name }}</span>
                                     </div>

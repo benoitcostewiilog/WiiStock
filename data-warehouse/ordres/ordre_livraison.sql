@@ -19,10 +19,10 @@ FROM (
            reference_article.quantite_stock   AS quantite_en_stock,
            reference_article.bar_code         AS code_barre,
 
-           IF(demande_livraison.date IS NOT NULL AND ordre_livraison.date IS NOT NULL,
-              ROUND(TIME_FORMAT(TIMEDIFF(ordre_livraison.date, demande_livraison.date), '%H')
-                        + TIME_FORMAT(TIMEDIFF(ordre_livraison.date, demande_livraison.date), '%i') / 60
-                        + TIME_FORMAT(TIMEDIFF(ordre_livraison.date, demande_livraison.date), '%s') / 3600, 4), NULL) AS delta_date
+           IF(ordre_livraison.date_fin IS NOT NULL AND preparation.date IS NOT NULL,
+              ROUND(TIME_FORMAT(TIMEDIFF(ordre_livraison.date_fin, preparation.date), '%H')
+                        + TIME_FORMAT(TIMEDIFF(ordre_livraison.date_fin, preparation.date), '%i') / 60
+                        + TIME_FORMAT(TIMEDIFF(ordre_livraison.date_fin, preparation.date), '%s') / 3600, 4), NULL) AS delta_date
 
     FROM livraison AS ordre_livraison
         LEFT JOIN statut ON ordre_livraison.statut_id = statut.id
@@ -35,6 +35,7 @@ FROM (
                 LEFT JOIN reference_article ON ligne_article_preparation.reference_id = reference_article.id
                 LEFT JOIN emplacement AS destination ON demande_livraison.destination_id = destination.id
 
+    WHERE ligne_article_preparation.quantite_prelevee > 0
 
     UNION
     SELECT
@@ -55,10 +56,10 @@ FROM (
         article.quantite                   AS quantite_en_stock,
         article.bar_code                   AS code_barre,
 
-        IF(demande_livraison.date IS NOT NULL AND ordre_livraison.date IS NOT NULL,
-           ROUND(TIME_FORMAT(TIMEDIFF(ordre_livraison.date, demande_livraison.date), '%H')
-                     + TIME_FORMAT(TIMEDIFF(ordre_livraison.date, demande_livraison.date), '%i') / 60
-                     + TIME_FORMAT(TIMEDIFF(ordre_livraison.date, demande_livraison.date), '%s') / 3600, 4), NULL) AS delta_date
+        IF(ordre_livraison.date_fin IS NOT NULL AND preparation.date IS NOT NULL,
+           ROUND(TIME_FORMAT(TIMEDIFF(ordre_livraison.date_fin, preparation.date), '%H')
+                     + TIME_FORMAT(TIMEDIFF(ordre_livraison.date_fin, preparation.date), '%i') / 60
+                     + TIME_FORMAT(TIMEDIFF(ordre_livraison.date_fin, preparation.date), '%s') / 3600, 4), NULL) AS delta_date
 
     FROM livraison AS ordre_livraison
         LEFT JOIN statut ON ordre_livraison.statut_id = statut.id
@@ -71,4 +72,6 @@ FROM (
                 LEFT JOIN utilisateur AS demandeur ON demande_livraison.utilisateur_id = demandeur.id
                 LEFT JOIN article_fournisseur ON article.article_fournisseur_id = article_fournisseur.id
                     LEFT JOIN reference_article ON article_fournisseur.reference_article_id = reference_article.id
+
+    WHERE article.quantite > 0
 ) AS orders

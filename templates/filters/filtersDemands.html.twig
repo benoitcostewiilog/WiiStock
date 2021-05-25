@@ -12,6 +12,16 @@
     {% include 'filters/filter_item/filterType.html.twig' with {
         arrivalType: false } %}
 
+    {% if page == 'PAGE_HAND' %}
+        {% include 'filters/filter_item/filterSubject.html.twig' %}
+        {% set fieldCode = constant('App\\Entity\\FieldsParam::FIELD_CODE_RECEIVERS_HANDLING') %}
+        {% if fieldsParam|isFieldRequired(fieldCode, 'displayedFilters') %}
+            {% include 'filters/filter_item/filterUser.html.twig' with {
+                name: 'receivers'
+            }%}
+        {% endif %}
+    {% endif %}
+
     {% if emergencies is defined %}
         {% set fieldCode = constant('App\\Entity\\FieldsParam::FIELD_CODE_EMERGENCY') %}
         {% if fieldsParam|isFieldRequired(fieldCode, 'displayedFilters') %}

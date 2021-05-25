@@ -4,8 +4,10 @@
 namespace App\Service;
 
 
+use App\Entity\Arrivage;
 use App\Entity\FiltreSup;
 use App\Entity\Fournisseur;
+use App\Entity\ParametrageGlobal;
 use App\Entity\Transporteur;
 use App\Entity\Urgence;
 use App\Entity\Utilisateur;
@@ -14,51 +16,22 @@ use DateTimeZone;
 use Symfony\Component\Security\Core\Security;
 use Twig\Environment as Twig_Environment;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Routing\RouterInterface;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 class UrgenceService
 {
-    /**
-     * @var Twig_Environment
-     */
     private $templating;
-
-    /**
-     * @var RouterInterface
-     */
-    private $router;
-
-    /**
-     * @var Utilisateur
-     */
-    private $user;
 
     private $entityManager;
 
-	/**
-	 * @var Security
-	 */
     private $security;
 
-    /**
-     * @var SpecificService
-     */
-    private $specificService;
-
-    public function __construct(TokenStorageInterface $tokenStorage,
-                                RouterInterface $router,
-                                EntityManagerInterface $entityManager,
+    public function __construct(EntityManagerInterface $entityManager,
                                 Twig_Environment $templating,
-								SpecificService $specificService,
 								Security $security)
     {
         $this->templating = $templating;
         $this->entityManager = $entityManager;
-        $this->router = $router;
-        $this->user = $tokenStorage->getToken()->getUser();
         $this->security = $security;
-        $this->specificService = $specificService;
     }
 
     public function getDataForDatatable($params = null)
@@ -135,4 +108,26 @@ class UrgenceService
 
         return $urgence;
     }
+
+    /**
+     * @return Urgence[]
+     */
+    public function matchingEmergencies(Arrivage $arrival, ?string $orderNumber, ?string $post, bool $excludeTriggered = false) {
+        $urgenceRepository = $this->entityManager->getRepository(Urgence::class);
+
+        if(!isset($this->__arrival_emergency_fields)) {
+            $this->__arrival_emergency_fields = json_decode($this->entityManager
+                ->getRepository(ParametrageGlobal::class)
+                ->getOneParamByLabel(ParametrageGlobal::ARRIVAL_EMERGENCY_TRIGGERING_FIELDS));
+        }
+
+        return $urgenceRepository->findUrgencesMatching(
+            $this->__arrival_emergency_fields,
+            $arrival,
+            $orderNumber,
+            $post,
+            $excludeTriggered,
+        );
+    }
+
 }

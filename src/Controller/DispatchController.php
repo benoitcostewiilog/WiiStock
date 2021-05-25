@@ -22,6 +22,7 @@ use App\Entity\Transporteur;
 use App\Entity\Type;
 use App\Entity\Utilisateur;
 
+use WiiCommon\Helper\Stream;
 use App\Service\AttachmentService;
 use App\Service\CSVExportService;
 use App\Service\FreeFieldService;
@@ -217,6 +218,7 @@ class DispatchController extends AbstractController {
      * @param EntityManagerInterface $entityManager
      * @param TranslatorInterface $translator
      * @param UniqueNumberService $uniqueNumberService
+     * @param RedirectService $redirectService
      * @return Response
      * @throws Exception
      */
@@ -264,7 +266,7 @@ class DispatchController extends AbstractController {
             $carrier = $post->get('carrier');
             $carrierTrackingNumber = $post->get('carrierTrackingNumber');
             $commandNumber = $post->get('commandNumber');
-            $receiver = $post->get('receiver');
+            $receivers = $post->get('receivers');
             $emergency = $post->get('emergency');
             $projectNumber = $post->get('projectNumber');
             $businessUnit = $post->get('businessUnit');
@@ -325,8 +327,17 @@ class DispatchController extends AbstractController {
                 $dispatch->setCommandNumber($commandNumber);
             }
 
-            if(!empty($receiver)) {
-                $dispatch->setReceiver($utilisateurRepository->find($receiver) ?? null);
+            if(!empty($receivers)) {
+                $receiverIds = explode("," , $receivers);
+
+                foreach ($receiverIds as $receiverId) {
+                    if (!empty($receiverId)) {
+                        $receiver = $receiverId ? $utilisateurRepository->find($receiverId) : null;
+                        if ($receiver) {
+                            $dispatch->addReceiver($receiver);
+                        }
+                    }
+                }
             }
 
             if(!empty($emergency)) {
@@ -444,7 +455,7 @@ class DispatchController extends AbstractController {
                 'natures' => $natureRepository->findBy([], ['label' => 'ASC'])
             ],
             'dispatchValidate' => [
-                'untreatedStatus' => $statusRepository->findStatusByType(CategorieStatut::DISPATCH, $dispatch->getType(), [Statut::NOT_TREATED])
+                'untreatedStatus' => $statusRepository->findStatusByType(CategorieStatut::DISPATCH, $dispatch->getType(), [Statut::NOT_TREATED, Statut::PARTIAL])
             ],
             'dispatchTreat' => [
                 'treatedStatus' => $statusRepository->findStatusByType(CategorieStatut::DISPATCH, $dispatch->getType(), [Statut::TREATED])
@@ -484,7 +495,12 @@ class DispatchController extends AbstractController {
                         'Date de validation' => $dispatch->getValidationDate() ? $dispatch->getValidationDate()->format('d/m/Y H:i:s') : '',
                         'Date de traitement' => $dispatch->getTreatmentDate() ? $dispatch->getTreatmentDate()->format('d/m/Y H:i:s') : '',
                         'Demandeur' => $dispatch->getRequester() ? $dispatch->getRequester()->getUsername() : '',
-                        'Destinataire' => $dispatch->getReceiver() ? $dispatch->getReceiver()->getUsername() : '',
+                        'Destinataire(s)' => $dispatch->getReceivers() ?
+                            Stream::from($dispatch->getReceivers())
+                            ->map(function (Utilisateur $receiver) {
+                                return $receiver->getUsername();
+                            })
+                            ->join(", ") : '',
                         $translator->trans('acheminement.Emplacement dépose') => $dispatch->getLocationTo() ? $dispatch->getLocationTo()->getLabel() : '',
                         $translator->trans('acheminement.Emplacement prise') => $dispatch->getLocationFrom() ? $dispatch->getLocationFrom()->getLabel() : ''
                     ]
@@ -558,10 +574,8 @@ class DispatchController extends AbstractController {
             ]);
         }
 
-        $receiverData = $post->get('receiver');
         $requesterData = $post->get('requester');
         $carrierData = $post->get('carrier');
-        $receiver = $receiverData ? $utilisateurRepository->find($receiverData) : null;
         $requester = $requesterData ? $utilisateurRepository->find($requesterData) : null;
         $carrier = $carrierData ? $transporterRepository->find($carrierData) : null;
 
@@ -570,6 +584,22 @@ class DispatchController extends AbstractController {
         $projectNumber = $post->get('projectNumber');
         $businessUnit = $post->get('businessUnit');
 
+        $receiversids = $post->get('receivers')
+            ? explode(",", $post->get('receivers') ?? '')
+            : [];
+
+        $existingReceivers = $dispatch->getReceivers();
+        foreach($existingReceivers as $receiver) {
+            $dispatch->removeReceiver($receiver);
+        }
+        foreach ($receiversids as $receiverId) {
+            if (!empty($receiverId)) {
+                $receiver = $receiverId ? $utilisateurRepository->find($receiverId) : null;
+                if ($receiver) {
+                    $dispatch->addReceiver($receiver);
+                }
+            }
+        }
         $dispatch
             ->setStartDate($startDate)
             ->setEndDate($endDate)
@@ -578,7 +608,6 @@ class DispatchController extends AbstractController {
             ->setCarrierTrackingNumber($transporterTrackingNumber)
             ->setCommandNumber($commandNumber)
             ->setRequester($requester)
-            ->setReceiver($receiver)
             ->setEmergency($post->get('emergency') ?? null)
             ->setLocationFrom($locationTake)
             ->setLocationTo($locationDrop)
@@ -1071,6 +1100,7 @@ class DispatchController extends AbstractController {
         if(isset($dateTimeMin) && isset($dateTimeMax)) {
             $dispatchRepository = $entityManager->getRepository(Dispatch::class);
             $dispatches = $dispatchRepository->getByDates($dateTimeMin, $dateTimeMax);
+
             $nbPacksByDispatch = $dispatchRepository->getNbPacksByDates($dateTimeMin, $dateTimeMax);
 
             $freeFieldsConfig = $freeFieldService->createExportArrayConfig($entityManager, [CategorieCL::DEMANDE_DISPATCH]);
@@ -1101,12 +1131,16 @@ class DispatchController extends AbstractController {
                 ],
                 $freeFieldsConfig['freeFieldsHeader']
             );
+            $receivers = $dispatchRepository->getReceiversByDates($dateTimeMin, $dateTimeMax);
 
             return $CSVExportService->createBinaryResponseFromData(
                 'export_acheminements.csv',
                 $dispatches,
                 $csvHeader,
-                function($dispatch) use ($freeFieldsConfig, $freeFieldService, $nbPacksByDispatch) {
+                function($dispatch) use ($freeFieldsConfig, $freeFieldService, $nbPacksByDispatch, $receivers) {
+                    $id = $dispatch['id'];
+                    $receiversStr = Stream::from($receivers[$id] ?? [])
+                        ->join(", ");
                     $number = $dispatch['number'] ?? '';
 
                     $row = [];
@@ -1116,7 +1150,7 @@ class DispatchController extends AbstractController {
                     $row[] = $dispatch['treatmentDate'] ? $dispatch['treatmentDate']->format('d/m/Y H:i:s') : '';
                     $row[] = $dispatch['type'] ?? '';
                     $row[] = $dispatch['requester'] ?? '';
-                    $row[] = $dispatch['receiver'] ?? '';
+                    $row[] = $receiversStr;
                     $row[] = $dispatch['locationFrom'] ?? '';
                     $row[] = $dispatch['locationTo'] ?? '';
                     $row[] = $nbPacksByDispatch[$number] ?? '';
@@ -1165,7 +1199,7 @@ class DispatchController extends AbstractController {
                                     Dispatch $dispatch): JsonResponse {
         /** @var Utilisateur $loggedUser */
         $loggedUser = $this->getUser();
-        $maxNumberOfPacks = 7;
+        $maxNumberOfPacks = 10;
 
         if($dispatch->getDispatchPacks()->count() === 0) {
             $errorMessage = $translator->trans('acheminement.Des colis sont nécessaires pour générer un bon de livraison') . '.';
@@ -1573,11 +1607,14 @@ class DispatchController extends AbstractController {
             $typeAndStatus = explode(';', $overConsumptionBill);
             $typeId = intval($typeAndStatus[0]);
             $statutsId = intval($typeAndStatus[1]);
-            if($dispatch->getType()->getId() === $typeId) {
+
+            if ($dispatch->getType()->getId() === $typeId) {
                 $untreatedStatus = $statutRepository->find($statutsId);
                 $dispatch
-                    ->setStatut($untreatedStatus)
-                    ->setValidationDate(new DateTime('now', new DateTimeZone('Europe/Paris')));
+                    ->setStatut($untreatedStatus);
+                if (!$dispatch->getValidationDate()) {
+                    $dispatch->setValidationDate(new DateTime('now', new DateTimeZone('Europe/Paris')));
+                }
 
                 $entityManager->flush();
                 $dispatchService->sendEmailsAccordingToStatus($dispatch, true);

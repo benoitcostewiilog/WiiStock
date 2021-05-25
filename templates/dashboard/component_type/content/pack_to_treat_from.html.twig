@@ -2,7 +2,7 @@
 
 {% block content %}
     <div class="row">
-        <div class="form-group col-6">
+        <div class="form-group col-12">
             <label>Emplacement(s) origine 1</label>
             <select class="ajax-autocomplete-location data form-control w-100 needed"
                     name="firstOriginLocation"
@@ -13,18 +13,10 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="form-group col-6">
-            <label>Légende origine</label>
-            <input class="data form-control w-100"
-                   name="originCaption"
-                   type="text"
-                   title="Légende origine"
-                   value="{{ values.originCaption ?? '' }}"/>
-        </div>
     </div>
 
     <div class="row">
-        <div class="form-group col-6">
+        <div class="form-group col-12">
             <label>Emplacement(s) origine 2</label>
             <select class="ajax-autocomplete-location data form-control w-100 needed"
                     name="secondOriginLocation"
@@ -35,18 +27,10 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="form-group col-6">
-            <label>Légende destination</label>
-            <input class="data form-control w-100"
-                   name="destinationCaption"
-                   type="text"
-                   title="Légende destination"
-                   value="{{ values.destinationCaption ?? '' }}"/>
-        </div>
     </div>
 
     <div class="row">
-        <div class="form-group col-6">
+        <div class="form-group col-12">
             <label>Emplacement(s) destination 1</label>
             <select class="ajax-autocomplete-location data form-control w-100 needed"
                     name="firstDestinationLocation"
@@ -60,7 +44,7 @@
     </div>
 
     <div class="row">
-        <div class="form-group col-6">
+        <div class="form-group col-12">
             <label>Emplacement(s) destination 2</label>
             <select class="ajax-autocomplete-location data form-control w-100 needed"
                     name="secondDestinationLocation"
@@ -70,6 +54,27 @@
                     <option value="{{ location.id }}" selected>{{ location.label }}</option>
                 {% endfor %}
             </select>
+        </div>
+    </div>
+{% endblock %}
+
+{% block content_right %}
+    <div class="row">
+        <div class="form-group col-12">
+            <label>Légende 1</label>
+            <input class="data form-control w-100"
+                   name="originCaption"
+                   type="text"
+                   title="Légende 1"
+                   value="{{ values.originCaption ?? '' }}"/>
+        </div>
+        <div class="form-group col-12">
+            <label>Légende 2</label>
+            <input class="data form-control w-100"
+                   name="destinationCaption"
+                   type="text"
+                   title="Légende 2"
+                   value="{{ values.destinationCaption ?? '' }}"/>
         </div>
     </div>
 {% endblock %}

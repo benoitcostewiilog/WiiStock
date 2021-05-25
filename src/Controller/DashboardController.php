@@ -3,9 +3,11 @@
 namespace App\Controller;
 
 use App\Entity\Dashboard\ComponentType;
+use App\Entity\LatePack;
 use App\Entity\Utilisateur;
 use App\Service\DashboardService;
 use App\Service\DashboardSettingsService;
+use App\Service\SpecificService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -16,7 +18,8 @@ use Symfony\Component\Routing\Annotation\Route;
 /**
  * @Route("/")
  */
-class DashboardController extends AbstractController {
+class
+DashboardController extends AbstractController {
 
     /**
      * @Route("/accueil", name="accueil")
@@ -27,12 +30,16 @@ class DashboardController extends AbstractController {
      */
     public function dashboards(DashboardService $dashboardService,
                                DashboardSettingsService $dashboardSettingsService,
-                               EntityManagerInterface $manager): Response {
+                               EntityManagerInterface $manager,
+                               SpecificService $specificService): Response {
         /** @var Utilisateur $loggedUser */
         $loggedUser = $this->getUser();
+        $client  =  $specificService->getAppClient();
+
         return $this->render("dashboard/dashboards.html.twig", [
             "dashboards" => $dashboardSettingsService->serialize($manager, $loggedUser, DashboardSettingsService::MODE_DISPLAY),
             "refreshed" => $dashboardService->refreshDate($manager),
+            "refresh_rate" => $client === SpecificService::CLIENT_COLLINS_VERNON ? 1 : 5,
         ]);
     }
 
@@ -47,20 +54,22 @@ class DashboardController extends AbstractController {
     public function external(DashboardService $dashboardService,
                              DashboardSettingsService $dashboardSettingsService,
                              EntityManagerInterface $manager,
+                             SpecificService $specificService,
                              string $token): Response {
         if ($token != $_SERVER["APP_DASHBOARD_TOKEN"]) {
             return $this->redirectToRoute("access_denied");
         }
-
+        $client = $specificService->getAppClient();
         return $this->render("dashboard/external.html.twig", [
             "title" => "Dashboard externe", //ne s'affiche normalement jamais
             "dashboards" => $dashboardSettingsService->serialize($manager, null, DashboardSettingsService::MODE_EXTERNAL),
             "refreshed" => $dashboardService->refreshDate($manager),
+            "client" => $client,
         ]);
     }
 
     /**
-     * @Route("/dashboard/actualiser/{mode}", name="dashboards_fetch", options={"expose"=true})
+     * @Route("/dashboard/sync/{mode}", name="dashboards_fetch", options={"expose"=true})
      * @param DashboardService $dashboardService
      * @param DashboardSettingsService $dashboardSettingsService
      * @param EntityManagerInterface $manager
@@ -79,10 +88,24 @@ class DashboardController extends AbstractController {
         ]);
     }
 
+    /**
+     * @Route("/dashboard/statistics/late-pack-api", name="api_late_pack", options={"expose"=true}, methods="GET", condition="request.isXmlHttpRequest()")
+     * @param EntityManagerInterface $entityManager
+     * @return JsonResponse
+     */
+    public function apiLatePacks(EntityManagerInterface $entityManager): Response
+    {
+        $latePackRepository = $entityManager->getRepository(LatePack::class);
+        $retards = $latePackRepository->findAllForDatatable();
+        return new JsonResponse([
+            'data' => $retards
+        ]);
+    }
+
 
     /**
      * @Route(
-     *     "/statistiques/receptions-associations",
+     *     "/dashboard/statistics/receptions-associations",
      *     name="get_asso_recep_statistics",
      *     options={"expose"=true},
      *     methods={"GET"},
@@ -107,7 +130,7 @@ class DashboardController extends AbstractController {
 
     /**
      * @Route(
-     *     "/statistiques/arrivages-um",
+     *     "/dashboard/statistics/arrivages-um",
      *     name="get_arrival_um_statistics",
      *     options={"expose"=true},
      *     methods={"GET"},

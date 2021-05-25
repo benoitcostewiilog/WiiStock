@@ -40,14 +40,15 @@ const $modalComponentTypeSecondStep = $('#modalComponentTypeSecondStep');
 
 $(window).resize(function () {
     clearTimeout(window.resizedFinished);
-    window.resizedFinished = setTimeout(function(){
+    window.resizedFinished = setTimeout(function () {
         renderCurrentDashboard();
     }, 100);
 });
 
-function loadDashboards(m) {
+function loadDashboards(m, refreshRate) {
     mode = m;
-    if(mode === undefined) {
+
+    if (mode === undefined) {
         alert("Configuration invalide");
     }
 
@@ -56,13 +57,14 @@ function loadDashboards(m) {
 
     $(window).on("hashchange", loadCurrentDashboard);
 
-    $(`.save-dashboards`).on('click', function() {
+    $(`.save-dashboards`).on('click', function () {
         wrapLoadingOnActionButton($(this), onDashboardSaved);
     });
 
     $(document).keydown(onArrowNavigation);
     $addRowButton.on('click', onRowAdded);
     $dashboard.on(`click`, `.delete-row`, onRowDeleted);
+    $dashboard.on(`click`, `.edit-row`, onRowEdit);
 
     $modalComponentTypeSecondStep.on(`click`, `.select-all-types`, onSelectAll);
     $modalComponentTypeSecondStep.on(`click`, `.select-all-statuses`, onSelectAll);
@@ -72,10 +74,9 @@ function loadDashboards(m) {
 
     $(window).bind('beforeunload', hasEditDashboard);
 
-    if(mode === MODE_DISPLAY || mode === MODE_EXTERNAL) {
-        // all 5 min
-        setInterval(function() {
-            $.get(Routing.generate("dashboards_fetch", {mode}), function(response) {
+    if (mode === MODE_DISPLAY || mode === MODE_EXTERNAL) {
+        setInterval(function () {
+            $.get(Routing.generate("dashboards_fetch", {mode}), function (response) {
                 dashboards = JSON.parse(response.dashboards);
                 currentDashboard = dashboards.find(({dashboardIndex: currentDashboardIndex}) => currentDashboardIndex === currentDashboard.dashboardIndex);
 
@@ -83,55 +84,56 @@ function loadDashboards(m) {
                 renderDashboardPagination();
                 renderRefreshDate(response.refreshed);
             })
-        }, 5 * 60 * 1000);
+        }, refreshRate * 60 * 1000);
     }
 
     $(document)
-        .arrive(".segments-list .segment-hour", function() {
+        .arrive(".segments-list .segment-hour", function () {
             onSegmentInputChange($(this), true);
         });
 }
 
 function onArrowNavigation(e) {
-    const LEFT = 37;
-    const RIGHT = 39;
-    let requestedDashboardIndex;
+    if (!$('.modal.show').exists()) {
+        const LEFT = 37;
+        const RIGHT = 39;
+        let requestedDashboardIndex;
 
-    if (e.which === LEFT) {
-        requestedDashboardIndex = currentDashboard.dashboardIndex - 1;
-    }
-    else if (e.which === RIGHT) {
-        requestedDashboardIndex = currentDashboard.dashboardIndex + 1;
-    }
+        if (e.which === LEFT) {
+            requestedDashboardIndex = currentDashboard.dashboardIndex - 1;
+        } else if (e.which === RIGHT) {
+            requestedDashboardIndex = currentDashboard.dashboardIndex + 1;
+        }
 
-    const requestedDashboard = dashboards[requestedDashboardIndex];
+        const requestedDashboard = dashboards[requestedDashboardIndex];
 
-    if (requestedDashboard) {
-        currentDashboard = requestedDashboard;
-        location.hash = `#${requestedDashboardIndex + 1}`;
-        renderCurrentDashboard();
-        updateAddRowButton();
-        renderDashboardPagination();
-        e.preventDefault(); // prevent the default action (scroll / move caret)
+        if (requestedDashboard) {
+            currentDashboard = requestedDashboard;
+            location.hash = `#${requestedDashboardIndex + 1}`;
+            renderCurrentDashboard();
+            updateAddRowButton();
+            renderDashboardPagination();
+            e.preventDefault(); // prevent the default action (scroll / move caret)
+        }
     }
 }
 
 function onSelectAll() {
     const $select = $(this).closest(`.input-group`).find(`select`);
 
-    $select.find(`option:not([disabled])`).each(function() {
+    $select.find(`option:not([disabled])`).each(function () {
         $(this).prop(`selected`, true);
     });
 
     $select.trigger(`change`);
 }
 
-$(`.download-trace`).click(function() {
+$(`.download-trace`).click(function () {
     const blob = new Blob([$(`[name="error-context"]`).val()]);
     saveAs(blob, `dashboards-error.txt`);
 })
 
-$dashboardRowSelector.click(function() {
+$dashboardRowSelector.click(function () {
     const button = $(this);
 
     $(`input[name="new-row-columns-count"]`).val(button.data(`columns`));
@@ -140,7 +142,7 @@ $dashboardRowSelector.click(function() {
     $addRowButton.attr(`disabled`, false);
 });
 
-$pagination.on(`click`, `[data-target="#rename-dashboard-modal"]`, function() {
+$pagination.on(`click`, `[data-target="#rename-dashboard-modal"]`, function () {
     const dashboard = $(this).data(`dashboard-index`);
     const $indexInput = $(`input[name="rename-dashboard-index"]`);
     const $nameInput = $(`input[name="rename-dashboard-name"]`);
@@ -149,15 +151,15 @@ $pagination.on(`click`, `[data-target="#rename-dashboard-modal"]`, function() {
     $nameInput.val(dashboards[dashboard].name);
 });
 
-$(`.rename-dashboard-modal-submit`).click(function() {
+$(`.rename-dashboard-modal-submit`).click(function () {
     const dashboard = $(`input[name="rename-dashboard-index"]`).val();
     const $dashboardNameInput = $('input[name="rename-dashboard-name"]');
     const name = $dashboardNameInput.val();
     const $modal = $dashboardNameInput.closest('.modal');
-    if(name) {
+    if (name) {
         $dashboardNameInput.val(``);
 
-        if(dashboards[dashboard].name !== name) {
+        if (dashboards[dashboard].name !== name) {
             dashboards[dashboard].name = name;
             dashboards[dashboard].updated = true;
         }
@@ -174,7 +176,7 @@ function recalculateIndexes() {
         dashboard.dashboardIndex = dashboardIndex;
 
         (dashboard.rows || []).forEach((row, rowIndex) => {
-            if(dashboard === currentDashboard) {
+            if (dashboard === currentDashboard) {
                 $(`[data-row-index="${row.rowIndex}"]`)
                     .data(`row-index`, rowIndex)
                     .attr(`data-row-index`, rowIndex); //update the dom too
@@ -191,15 +193,23 @@ function renderRefreshDate(date) {
 
 function renderCurrentDashboard() {
     $dashboard.empty();
-    if(currentDashboard) {
+    if (currentDashboard) {
         updateCurrentDashboardSize();
 
-        Object.values(currentDashboard.rows)
+        Object.keys(currentDashboard.rows)
+            .map((key) => currentDashboard.rows[key])
             .map(renderRow)
-            .forEach((row) => $dashboard.append(row));
+            .forEach((row) => {
+                const $dashboardCurrentRow = $dashboard.find(`.dashboard-row[data-row-index="${row.data('row-index')}"]`);
+                if ($dashboardCurrentRow.length > 0) {
+                    $dashboardCurrentRow.replaceWith(row);
+                } else {
+                    $dashboard.append(row);
+                }
+            });
     }
 
-    if(mode === MODE_DISPLAY || mode === MODE_EXTERNAL) {
+    if (mode === MODE_DISPLAY || mode === MODE_EXTERNAL) {
         $(`.header-title`).html(`Dashboard | <span class="bold">${currentDashboard.name}</span>`);
         document.title = document.title.split('|')[0] + ` | ${currentDashboard.name}`;
     }
@@ -207,12 +217,12 @@ function renderCurrentDashboard() {
 
 function updateCurrentDashboardSize() {
     const currentSize = $dashboard.data('size');
-    const prefixSize = `dashboard-${(mode === MODE_EXTERNAL) ? 'external-' : ''}size-`;
+    const prefixSize = `dashboard-size-`;
     if (currentSize) {
-        $dashboard.removeClass(`${currentSize}`);
+        $dashboard.removeClass(`${prefixSize}${currentSize}`);
     }
 
-    const dashboardSize = currentDashboard.rows ? currentDashboard.rows.length : 0
+    const dashboardSize = currentDashboard.rows ? currentDashboard.rows.length : 0;
     $dashboard
         .addClass(`${prefixSize}${dashboardSize}`)
         .data('size', dashboardSize);
@@ -226,7 +236,7 @@ function renderRow(row) {
     const $rowWrapper = $(`<div/>`, {class: `dashboard-row-wrapper`});
     const flexFill = mode !== MODE_EXTERNAL ? 'flex-fill' : '';
     const $row = $(`<div/>`, {
-        class: `dashboard-row dashboard-row-size-${row.size} ${flexFill}`,
+        class: `dashboard-row ${flexFill}`,
         'data-row-index': `${row.rowIndex}`,
         'data-size': `${row.size}`,
         html: $rowWrapper
@@ -249,12 +259,17 @@ function renderRow(row) {
                 component: $.deepCopy(cellComponents[0]),
                 columnIndex
             });
-        }
-        else {
+        } else {
             $component = createComponentContainer(columnIndex);
-            $component.addClass('dashboard-component-split');
+
             for (let cellIndex = 0; cellIndex < cellComponents.length; cellIndex++) {
                 const component = cellComponents[cellIndex];
+                if (component && component.direction === 0) {
+                    $component.addClass('dashboard-component-split-horizontally');
+                } else if (component && component.direction === 1) {
+                    $component.addClass('dashboard-component-split-vertically');
+                }
+
                 const $cardComponent = renderCardComponent({
                     component: $.deepCopy(component),
                     columnIndex,
@@ -267,19 +282,23 @@ function renderRow(row) {
         $rowWrapper.append($component);
     }
 
-    if(mode === MODE_EDIT) {
+    if (mode === MODE_EDIT) {
         $row.append(`
-            <div class="delete-row-container"><i class="fa fa-trash ml-1 delete-row pointer"></i></div>
+            <div class="action-row-container">
+                <div class="bg-white w-px-30 rounded">
+                    <i class="icon fa fa-trash ml-1 delete-row"></i>
+                    <i class="icon fa fa-pen ml-1 edit-row"></i>
+                </div>
+            </div>
         `);
     }
 
     return $row;
 }
 
-function createComponentContainer(columnIndex, cellIndex) {
-    const dFlex = mode !== MODE_EXTERNAL ? 'd-lg-flex' : '';
+function createComponentContainer(columnIndex, cellIndex = null) {
     const $container = $('<div/>', {
-        class: `dashboard-component ${dFlex}`,
+        class: `dashboard-component`,
         'data-column-index': columnIndex
     });
 
@@ -297,23 +316,23 @@ function renderCardComponent({columnIndex, cellIndex, component}) {
     const $componentContainer = createComponentContainer(columnIndex, cellIndex);
     cellIndex = convertIndex(cellIndex);
 
-    if(component && typeof component === 'object') {
+    if (component && typeof component === 'object') {
         $componentContainer.pushLoader('black', 'normal');
         renderComponentWithData(
             $componentContainer,
             component,
-            component.config || {},
+            component.config || {}
         )
             .then(() => {
                 $componentContainer.popLoader();
-                if($componentContainer.children().length === 0) {
+                if ($componentContainer.children().length === 0) {
                     $componentContainer.append($('<div/>', {
                         class: 'text-danger d-flex flex-fill align-items-center justify-content-center',
                         html: `<i class="fas fa-exclamation-triangle mr-2"></i>Erreur lors de l'affichage du composant`
                     }));
                 }
 
-                if(mode === MODE_EDIT) {
+                if (mode === MODE_EDIT) {
                     const $editButton = component.template
                         ? $('<div/>', {
                             class: 'dropdown-item pointer',
@@ -335,7 +354,7 @@ function renderCardComponent({columnIndex, cellIndex, component}) {
                         html: [
                             '<i class="fas fa-cog" data-toggle="dropdown"></i>',
                             $(`<div/>`, {
-                                class: 'dropdown-menu dropdown-menu-right pointer',
+                                class: 'dropdown-menu dropdown-follow-gt dropdown-menu-right pointer',
                                 html: [
                                     $editButton,
                                     $deleteButton
@@ -345,29 +364,37 @@ function renderCardComponent({columnIndex, cellIndex, component}) {
                     }));
                 }
             });
-    }
-    else {
+    } else {
         $componentContainer.addClass('empty');
         if (mode === MODE_EDIT) {
+            const isCellSplit = cellIndex !== null;
             const $addComponent = $('<button/>', {
-                class: 'btn btn-light',
-                click: openModalComponentTypeFirstStep,
+                class: 'btn btn-light dashboard-button',
+                name: 'add-component-button',
+                click: ({target} = {}) => openModalComponentTypeFirstStep($(target), isCellSplit),
                 html: `<i class="fas fa-plus mr-2"></i> Ajouter un composant`
             });
 
-            const $splitCell = cellIndex === null
-                ? $('<button/>', {
-                    class: 'btn btn-light mt-2',
-                    click: splitCell,
-                    html: `<i class="fas fa-cut"></i> Diviser`,
-                })
-                : ``;
+            const $splitCells = [];
+            if (!isCellSplit) {
+                $splitCells.push($('<button/>', {
+                    class: 'btn btn-light split-cell mt-2 dashboard-button',
+                    click: splitCellHorizontally,
+                    html: `<i class="fas fa-cut"></i> Diviser en hauteur`,
+                }));
+
+                $splitCells.push($('<button/>', {
+                    class: 'btn btn-light split-cell mt-2 dashboard-button',
+                    click: splitCellVertically,
+                    html: `<i class="fas fa-cut"></i> Diviser en largeur`,
+                }));
+            }
 
             $componentContainer.html($('<div/>', {
                 class: 'd-flex flex-column align-content-center',
                 html: [
                     $addComponent,
-                    $splitCell,
+                    ...$splitCells,
                 ],
             }));
         }
@@ -384,7 +411,7 @@ function renderDashboardPagination() {
         .reverse()
         .forEach($item => $pagination.prepend($item));
 
-    if(mode === MODE_EDIT) {
+    if (mode === MODE_EDIT) {
         $(`.dashboard-pagination`).append(`
             <button class="btn btn-primary btn-ripple mx-1"
                     data-toggle="modal"
@@ -405,7 +432,7 @@ function createDashboardSelectorItem(dashboard) {
 
     let name;
 
-    if(dashboard.name.length >= 20) {
+    if (dashboard.name.length >= 20) {
         name = $.trim(dashboard.name).substring(0, 17) + "...";
     } else {
         name = dashboard.name;
@@ -419,7 +446,7 @@ function createDashboardSelectorItem(dashboard) {
     });
 
     let $editable = ``;
-    if(mode === MODE_EDIT) {
+    if (mode === MODE_EDIT) {
         const externalRoute = Routing.generate('dashboards_external', {
             token: $(`.dashboards-token`).val(),
         });
@@ -429,7 +456,7 @@ function createDashboardSelectorItem(dashboard) {
                 <span class="pointer" data-toggle="dropdown">
                     <i class="fas fa-cog"></i>
                 </span>
-                <div class="dropdown-menu pointer">
+                <div class="dropdown-menu dropdown-follow-gt pointer">
                     <a class="dropdown-item rename-dashboard" role="button" data-dashboard-index="${dashboard.dashboardIndex}"
                          data-toggle="modal" data-target="#rename-dashboard-modal">
                         <i class="fas fa-edit mr-2"></i>Renommer
@@ -458,17 +485,17 @@ function createDashboardSelectorItem(dashboard) {
  * @param {boolean=false} init
  */
 function loadCurrentDashboard(init = false) {
-    if(init) {
+    if (init) {
         recalculateIndexes();
     }
 
-    if(dashboards && dashboards.length > 0) {
+    if (dashboards && dashboards.length > 0) {
         let hash = window.location.hash.replace(`#`, ``);
-        if(!hash || !dashboards[hash - 1]) {
+        if (!hash || !dashboards[hash - 1]) {
             hash = 1;
         }
 
-        if(!dashboards[hash - 1]) {
+        if (!dashboards[hash - 1]) {
             console.error(`Unknown dashboard "${hash}"`);
         } else {
             currentDashboard = dashboards[hash - 1];
@@ -476,7 +503,7 @@ function loadCurrentDashboard(init = false) {
         }
     }
     // no pages already saved
-    else if(window.location.hash) {
+    else if (window.location.hash) {
         window.location.hash = '';
     }
 
@@ -493,16 +520,16 @@ function onDashboardSaved() {
     return $.post(Routing.generate(`save_dashboard_settings`), content)
         .then(function(data) {
             if(data.success) {
-                showBSAlert("Modifications enregistrés avec succès", "success");
+                showBSAlert("Modifications enregistrées avec succès", "success");
                 dashboards = JSON.parse(data.dashboards);
                 loadCurrentDashboard(false);
-            } else if(data.msg) {
+            } else if (data.msg) {
                 showBSAlert(data.msg, "danger");
             } else {
                 throw data;
             }
         })
-        .catch(function(error) {
+        .catch(function (error) {
             const date = new Date().toISOString();
             error.responseText = undefined;
 
@@ -523,10 +550,10 @@ function onPageAdded() {
     const $dashboardNameInput = $('input[name="add-dashboard-name"]');
     const name = $dashboardNameInput.val();
     const $modal = $dashboardNameInput.closest('.modal');
-    if(name) {
+    if (name) {
         $dashboardNameInput.val(``);
 
-        if(dashboards.length >= MAX_NUMBER_PAGES) {
+        if (dashboards.length >= MAX_NUMBER_PAGES) {
             console.error("Too many dashboards");
         } else {
             currentDashboard = {
@@ -565,9 +592,9 @@ function onConfirmPageDeleted() {
     dashboards.splice(dashboard, 1);
     recalculateIndexes();
 
-    if(dashboards.length === 0) {
+    if (dashboards.length === 0) {
         currentDashboard = undefined;
-    } else if(dashboard === currentDashboard.dashboardIndex) {
+    } else if (dashboard === currentDashboard.dashboardIndex) {
         currentDashboard = dashboards[0];
     }
     somePagesDeleted = true;
@@ -587,7 +614,7 @@ function onRowAdded() {
     $dashboardRowSelector.removeClass("selected");
     $addRowButton.attr(`disabled`, true);
 
-    if(currentDashboard) {
+    if (currentDashboard) {
         currentDashboard.updated = true;
         currentDashboard.rows.push({
             rowIndex: currentDashboard.rows.length,
@@ -609,7 +636,7 @@ function onRowDeleted() {
     const rowIndex = $row.data(`row-index`);
 
     $row.remove();
-    if(currentDashboard) {
+    if (currentDashboard) {
         currentDashboard.updated = true;
         currentDashboard.rows.splice(rowIndex, 1);
     }
@@ -619,10 +646,94 @@ function onRowDeleted() {
     updateCurrentDashboardSize();
 }
 
+function onRowEdit() {
+    const $row = $(this).parents('.dashboard-row');
+    const rowIndex = $row.data(`row-index`);
+    const row = currentDashboard.rows[rowIndex];
+
+    const $modal = $(`#edit-row-modal`);
+
+    $modal.find(`.dashboard-row-selector`).removeClass(`selected`);
+    $modal.find(`.dashboard-row-selector[data-columns="${row.size}"]`).addClass(`selected`);
+    $modal.find(`input[name="new-row-columns-count"]`).val(row.size);
+
+    $modal.modal(`show`);
+    $modal.find(`button[type="submit"]`).off(`click`).click(function () {
+        const $selected = $modal.find(`.dashboard-row-selector.selected`);
+        if ($selected.exists()) {
+            const columns = $selected.data(`columns`);
+
+            if (row.size > columns) {
+                const $selectionModal = $(`#choose-components-modal`);
+                const $rowWrapper = $selectionModal.find(`.dashboard-row-wrapper`);
+                const $row = $selectionModal.find(`.dashboard-row`);
+                $row.attr(`data-size`, row.size);
+                $rowWrapper.empty();
+
+                for (let i = 0; i < row.size; i++) {
+                    const component = row.components.find(c => c.columnIndex === i) || null;
+                    const $component = $(`<div class="dashboard-component-placeholder pointer" data-index="${i}"></div>`);
+                    if (component) {
+                        $component.addClass(`not-selected`);
+                    } else {
+                        $component.addClass(`not-selectable`);
+                    }
+
+                    $component.click(function () {
+                        $(this).toggleClass(`not-selected selected`);
+                    });
+                    $rowWrapper.append($component);
+                }
+
+                $selectionModal.find(`button[type="submit"]`).off(`click`).click(function () {
+                    const kept = $selectionModal.find(`.dashboard-component-placeholder.selected`)
+                        .map(function () {
+                            return Number($(this).data(`index`));
+                        })
+                        .toArray();
+
+                    if (kept.length > columns) {
+                        showBSAlert(`Vous ne pouvez pas sélectionner plus de ${columns} composant(s)`, `danger`);
+                        return;
+                    }
+
+                    const columnMapping = {};
+                    row.components = row.components.filter(c => kept.indexOf(c.columnIndex) !== -1);
+                    for (let i = 0; i < row.components.length; i++) {
+                        const component = row.components[i];
+                        const newIndex =  kept.indexOf(component.columnIndex);
+
+                        if(columnMapping[component.columnIndex] !== undefined) {
+                            component.updated = 1;
+                            component.columnIndex = columnMapping[component.columnIndex];
+                        } else {
+                            columnMapping[component.columnIndex] = newIndex;
+                            component.updated = 1;
+                            component.columnIndex = newIndex;
+                        }
+                    }
+
+                    currentDashboard.updated = true;
+                    row.updated = true;
+                    row.size = columns;
+                    $selectionModal.modal(`hide`);
+                    renderCurrentDashboard();
+                });
+
+                $selectionModal.modal(`show`);
+            } else {
+                currentDashboard.updated = true;
+                row.updated = true;
+                row.size = columns;
+                renderCurrentDashboard();
+            }
+        }
+    });
+}
+
 function onComponentEdited() {
     const $button = $(this);
     const {row, component} = getComponentFromTooltipButton($button);
-
     openModalComponentTypeSecondStep($button, row.rowIndex, component);
 }
 
@@ -665,12 +776,19 @@ function getComponentFromTooltipButton($button) {
     };
 }
 
-function openModalComponentTypeFirstStep() {
-    $modalComponentTypeFirstStep.modal(`show`);
-
-    const $button = $(this);
+function openModalComponentTypeFirstStep($button, isSplitCell = false) {
     const $component = $button.closest(`.dashboard-component`);
     const $row = $component.closest(`.dashboard-row`);
+
+    const $componentButtonsInSplitCell = $modalComponentTypeFirstStep.find('[data-component-in-split-cell="0"]');
+    const $componentButtonsHint = $componentButtonsInSplitCell.siblings('.points');
+    if (isSplitCell) {
+        $componentButtonsInSplitCell.addClass('d-none');
+        $componentButtonsHint.addClass('d-none');
+    } else {
+        $componentButtonsInSplitCell.removeClass('d-none');
+        $componentButtonsHint.removeClass('d-none');
+    }
 
     $modalComponentTypeFirstStep
         .find(`input[name="columnIndex"]`)
@@ -681,16 +799,23 @@ function openModalComponentTypeFirstStep() {
         .val($component.data(`cell-index`));
 
     $modalComponentTypeFirstStep
+        .find(`input[name="direction"]`)
+        .val($component.data(`direction`));
+
+    $modalComponentTypeFirstStep
         .find(`input[name="rowIndex"]`)
         .val($row.data(`row-index`));
+
+    $modalComponentTypeFirstStep.modal(`show`);
 }
 
 function openModalComponentTypeNextStep($button) {
     const firstStepIsShown = $modalComponentTypeFirstStep.hasClass('show');
-    if(firstStepIsShown) {
+    if (firstStepIsShown) {
         const componentTypeId = $button.data('component-type-id');
         const $form = $button.closest('.form');
         const rowIndex = $form.find('[name="rowIndex"]').val();
+        const direction = $form.find('[name="direction"]').val();
         const columnIndex = $form.find('[name="columnIndex"]').val();
         const cellIndex = $form.find('[name="cellIndex"]').val();
         const componentTypeName = $button.data('component-type-name');
@@ -700,6 +825,7 @@ function openModalComponentTypeNextStep($button) {
         openModalComponentTypeSecondStep($button, rowIndex, {
             columnIndex,
             cellIndex,
+            direction,
             config: {
                 title: componentTypeName,
             },
@@ -715,27 +841,29 @@ function openModalComponentTypeSecondStep($button, rowIndex, component) {
     const content = {
         rowIndex,
         columnIndex: component.columnIndex,
+        direction: component.direction,
         cellIndex: component.cellIndex,
         values: JSON.stringify(component.config || {})
     };
 
-    wrapLoadingOnActionButton($button, () => $.post(route, content, function(data) {
-        if(data.html) {
-            initSecondStep(data.html);
-        } else {
+    wrapLoadingOnActionButton($button, () => $.post(route, content, function (data) {
+        $modalComponentTypeFirstStep.modal(`hide`);
+        if (data.html) {
+            $modalComponentTypeSecondStep
+                .off('shown.bs.modal')
+                .on('shown.bs.modal', function() {
+                    initSecondStep(data.html, component);
+                })
 
-            editComponent(convertIndex(rowIndex), convertIndex(component.columnIndex), convertIndex(component.cellIndex), {
+            $modalComponentTypeSecondStep.modal(`show`);
+        } else {
+            //TODO: plus utilisé du coup ?
+            editComponent(convertIndex(rowIndex), convertIndex(component.columnIndex), component.direction, convertIndex(component.cellIndex), {
                 config: component.config,
                 type: component.type,
                 meterKey: component.meterKey,
                 template: component.template,
             });
-        }
-
-        $modalComponentTypeFirstStep.modal(`hide`);
-
-        if(data.html) {
-            $modalComponentTypeSecondStep.modal(`show`);
         }
     }, 'json'), true);
 }
@@ -743,10 +871,23 @@ function openModalComponentTypeSecondStep($button, rowIndex, component) {
 function onComponentSaved($modal) {
     clearFormErrors($modal);
     const {success, errorMessages, $isInvalidElements, data} = processSecondModalForm($modal);
-    if(success) {
-        const {rowIndex, columnIndex, cellIndex, meterKey, template, componentType, ...config} = data;
+    if (success) {
+        const rowIndex = data.rowIndex;
+        const columnIndex = data.columnIndex;
+        const meterKey = data.meterKey;
+        const componentType = data.componentType;
+        const direction = data.direction;
+        const cellIndex = data.cellIndex;
+        const template = data.template;
+        const config = Object.assign({}, data);
+        delete config.rowIndex;
+        delete config.columnIndex;
+        delete config.meterKey;
+        delete config.componentType;
+        delete config.cellIndex;
+        delete config.template;
 
-        editComponent(convertIndex(rowIndex), convertIndex(columnIndex), convertIndex(cellIndex), {
+        editComponent(convertIndex(rowIndex), convertIndex(columnIndex), direction, convertIndex(cellIndex), {
             config,
             type: componentType,
             meterKey,
@@ -765,8 +906,8 @@ function onComponentSaved($modal) {
 function processSecondModalForm($modal) {
     const meterKey = $modal.find(`input[name="meterKey"]`).val();
 
-    const {data, ...remaining} = ProcessForm($modal, null, () => {
-        if(meterKey === ENTRIES_TO_HANDLE) {
+    const processFormResult = ProcessForm($modal, null, () => {
+        if (meterKey === ENTRIES_TO_HANDLE) {
             let previous = null;
             const allFilled = $modal
                 .find(`.segment-hour:not(.display-previous)`)
@@ -800,34 +941,45 @@ function processSecondModalForm($modal) {
             };
         }
     });
+    const data = processFormResult.data;
+    const remaining = Object.assign({}, processFormResult);
+    delete remaining.data;
 
-    if(meterKey === ENTRIES_TO_HANDLE && data.segments) {
+    if (meterKey === ENTRIES_TO_HANDLE && data.segments) {
         data.segments = data.segments.map(clearSegmentHourValues);
     }
+    if (data.chartColors && !Array.isArray(data.chartColors)) {
+        try {
+            data.chartColors = JSON.parse(data.chartColors);
+        }
+        catch(e) {}
+    }
 
-    return {data, ...remaining};
+    return Object.assign({}, remaining, {data});
 }
 
-function editComponent(rowIndex, columnIndex, cellIndex, {config, type, meterKey, template = null}) {
+function editComponent(rowIndex, columnIndex, direction, cellIndex, {config, type, meterKey, template = null}) {
     const currentRow = getCurrentDashboardRow(rowIndex);
     cellIndex = convertIndex(cellIndex);
 
-    if(currentRow) {
+    if (currentRow) {
         currentDashboard.updated = true;
         currentRow.updated = true;
 
         let currentComponent = getRowComponent(currentRow, columnIndex, cellIndex);
 
-        if(!currentComponent) {
+        if (!currentComponent) {
             currentComponent = {columnIndex, cellIndex};
             currentRow.components.push(currentComponent);
         }
 
         currentComponent.updated = true;
+        currentComponent.direction = direction;
         currentComponent.config = config;
         currentComponent.type = type;
         currentComponent.meterKey = meterKey;
         currentComponent.template = template;
+        currentComponent.initData = undefined;
 
         let $currentComponent = $dashboard
             .find(`.dashboard-row[data-row-index="${rowIndex}"]`)
@@ -835,8 +987,7 @@ function editComponent(rowIndex, columnIndex, cellIndex, {config, type, meterKey
 
         if (cellIndex === null) {
             $currentComponent = $currentComponent.filter(`:not([data-cell-index])`);
-        }
-        else {
+        } else {
             $currentComponent = $currentComponent.filter(`[data-cell-index="${cellIndex}"]`);
         }
 
@@ -848,10 +999,12 @@ function editComponent(rowIndex, columnIndex, cellIndex, {config, type, meterKey
     }
 }
 
-function initSecondStep(html) {
+function initSecondStep(html, component) {
     const $modalComponentTypeSecondStepContent = $modalComponentTypeSecondStep.find('.content');
     $modalComponentTypeSecondStepContent.html('');
     $modalComponentTypeSecondStepContent.html(html);
+
+    $modalComponentTypeSecondStep.attr(`data-meter-key`, component.meterKey);
 
     const $entitySelect = $modalComponentTypeSecondStepContent.find('select[name="entity"].init-entity-change');
     if ($entitySelect.length > 0) {
@@ -859,8 +1012,8 @@ function initSecondStep(html) {
     }
 
     $modalComponentTypeSecondStep.find(`.select2`).select2();
-    Select2.location($modalComponentTypeSecondStep.find('.ajax-autocomplete-location'));
-    Select2.carrier($modalComponentTypeSecondStep.find('.ajax-autocomplete-carrier'));
+    Select2Old.location($modalComponentTypeSecondStep.find('.ajax-autocomplete-location'));
+    Select2Old.carrier($modalComponentTypeSecondStep.find('.ajax-autocomplete-carrier'));
 
     const $submitButton = $modalComponentTypeSecondStep.find('button[type="submit"]');
     $submitButton.off('click');
@@ -872,13 +1025,43 @@ function initSecondStep(html) {
     $modalComponentTypeSecondStep.on('change.secondStepComponentType', 'select.data, input.data, input.data-array, input.checkbox', () => renderFormComponentExample())
 
     const $segmentsList = $modalComponentTypeSecondStepContent.find('.segments-list');
-    if($segmentsList.length > 0) {
+    if ($segmentsList.length > 0) {
         const segments = $segmentsList.data(`segments`);
-        if(segments.length > 0) {
+        if (segments.length > 0) {
             initializeEntryTimeIntervals(segments);
         } else {
             addEntryTimeInterval($segmentsList.find('.add-time-interval'));
         }
+    }
+
+
+    const $preview = $modalComponentTypeSecondStep.find('.preview-component-image');
+    const $input = $modalComponentTypeSecondStep.find('.upload-component-image');
+    const $title = $modalComponentTypeSecondStep.find('.title-component-image');
+    const $delete = $modalComponentTypeSecondStep.find('.delete-logo');
+    if($preview.exists()) {
+        if (!$modalComponentTypeSecondStep.find('.logo-icon > img').attr('src')) {
+            $modalComponentTypeSecondStep.find('img').addClass('d-none');
+            $delete.addClass('d-none');
+        }
+
+        $modalComponentTypeSecondStep.find(`.choose-image`).click(function () {
+            $input.click();
+        })
+
+        updateImagePreview($preview, $input, $title, $delete, function ($input) {
+            if ($input.files.length >= 1 && $input.files[0]) {
+                const reader = new FileReader();
+                reader.readAsDataURL($input.files[0]);
+                reader.onload = () => {
+                    const $deleteLogo = $modalComponentTypeSecondStep.find('.delete-logo');
+                    $deleteLogo.removeClass('d-none');
+                    $modalComponentTypeSecondStep.find(`.external-image-content`)
+                        .val(reader.result)
+                        .trigger(`change`);
+                };
+            }
+        });
     }
 }
 
@@ -889,7 +1072,7 @@ function getRowComponent(row, columnIndex, cellIndex = null) {
         && row.components
         && Array.isArray(row.components)) {
         let component;
-        for(let currentIndex = 0; currentIndex < row.components.length; currentIndex++){
+        for (let currentIndex = 0; currentIndex < row.components.length; currentIndex++) {
             const currentComponent = row.components[currentIndex];
             if (currentComponent) {
                 const {columnIndex: currentColumnIndex, cellIndex: currentCellIndex} = currentComponent;
@@ -902,8 +1085,7 @@ function getRowComponent(row, columnIndex, cellIndex = null) {
             }
         }
         return component;
-    }
-    else {
+    } else {
         return undefined;
     }
 }
@@ -964,13 +1146,15 @@ function hasEditDashboard() {
             pageUpdated
             || (
                 rows
-                && rows.some(({updated: rowUpdated, components}) => {
-                    components = Object.values(components);
+                && rows.some(({updated: rowUpdated, components: savedComponents}) => {
+                    const components = Object
+                        .keys(savedComponents)
+                        .map((key) => savedComponents[key]);
                     return rowUpdated
-                    || (
-                        components
-                        && components.some(({updated: componentUpdated}) => componentUpdated)
-                    )
+                        || (
+                            components
+                            && components.some(({updated: componentUpdated}) => componentUpdated)
+                        );
                 })
             )
         ))
@@ -991,7 +1175,7 @@ function renderFormComponentExample() {
 
     return renderComponentWithData($exampleContainer, component, formData)
         .then((renderingSuccess) => {
-            if(renderingSuccess) {
+            if (renderingSuccess) {
                 $exampleContainerParent.removeClass('d-none');
             } else {
                 $exampleContainerParent.addClass('d-none');
@@ -1004,7 +1188,7 @@ function renderFormComponentExample() {
 
 function renderComponentWithData($container, component, formData = null) {
     let exampleValuesPromise;
-    if(component.initData) {
+    if (component.initData) {
         exampleValuesPromise = new Promise((resolve) => {
             resolve({
                 exampleValues: component.initData
@@ -1029,7 +1213,7 @@ function renderComponentWithData($container, component, formData = null) {
 function initializeEntryTimeIntervals(segments) {
     const $button = $(`.add-time-interval`);
 
-    for(const segment of segments) {
+    for (const segment of segments) {
         addEntryTimeInterval($button, segment);
     }
 }
@@ -1037,17 +1221,17 @@ function initializeEntryTimeIntervals(segments) {
 function addEntryTimeInterval($button, time = null, notEmptySegment = false) {
     const current = $button.data(`current`);
 
-    if($('.segment-container').length === 5) {
+    if ($('.segment-container').length === 5) {
         showBSAlert('Il n\'est pas possible d\'ajouter plus de 5 segments à ce composant', 'danger');
         return false;
     }
 
-    if(notEmptySegment) {
+    if (notEmptySegment) {
         const lastSegmentHourEndValue = $('.segment-hour').last().val();
         const lastSegmentLabel = $('.segment-container label').last().text();
 
-        if(!lastSegmentHourEndValue) {
-            showBSAlert('Le <strong>' + lastSegmentLabel.toLowerCase() + '</strong> doit contenir une valeur de fin' , 'danger');
+        if (!lastSegmentHourEndValue) {
+            showBSAlert('Le <strong>' + lastSegmentLabel.toLowerCase() + '</strong> doit contenir une valeur de fin', 'danger');
             return false;
         }
     }
@@ -1097,7 +1281,7 @@ function addEntryTimeInterval($button, time = null, notEmptySegment = false) {
 function deleteEntryTimeInterval($button) {
     const $segmentContainer = $('.segment-container');
 
-    if($segmentContainer.length === 1) {
+    if ($segmentContainer.length === 1) {
         showBSAlert('Au moins un segment doit être renseigné', 'danger');
         event.preventDefault();
         return false;
@@ -1106,7 +1290,7 @@ function deleteEntryTimeInterval($button) {
     const $currentSegmentContainer = $button.closest('.segment-container');
     const $nextsegmentContainers = $currentSegmentContainer.nextAll().not('button');
 
-    $nextsegmentContainers.each(function() {
+    $nextsegmentContainers.each(function () {
         const $currentSegment = $(this);
         const $segmentValue = $currentSegment.find('.segment-value');
         $segmentValue.text(parseInt($segmentValue.text()) - 1);
@@ -1118,8 +1302,8 @@ function deleteEntryTimeInterval($button) {
 function recalculateIntervals() {
     let previous = null;
 
-    $(`.segments-list > .interval`).each(function() {
-        if(previous) {
+    $(`.segments-list > .interval`).each(function () {
+        if (previous) {
             $(this).find(`.display-previous`).val(previous);
         }
 
@@ -1134,7 +1318,7 @@ function onSegmentInputChange($input, isChanged = false) {
 
     $input.val(newVal);
 
-    if(isChanged) {
+    if (isChanged) {
         recalculateIntervals();
     }
 }
@@ -1199,35 +1383,102 @@ function toggleTreatmentDelay($checkbox) {
     const $modal = $checkbox.closest('.modal');
     const $treatmentDelay = $modal.find('[name=treatmentDelay]');
     $treatmentDelay.val('');
-    if(!$checkbox.prop('checked')) {
+    if (!$checkbox.prop('checked')) {
         $treatmentDelay.prop('disabled', true);
     } else {
         $treatmentDelay.prop('disabled', false);
     }
 }
 
-function splitCell() {
+function splitCellHorizontally() {
     const $button = $(this);
     const $componentContainer = $button.closest('.dashboard-component');
 
+    $button.siblings(`.split-cell`).remove();
     $button.remove();
+    const $addComponentButton = $componentContainer.find('button[name="add-component-button"]');
+    $addComponentButton.off('click');
+    $addComponentButton.on('click', ({target} = {}) => openModalComponentTypeFirstStep($(target), true));
 
     const $first = $componentContainer.clone(true);
     $first
+        .data('direction', 0)
+        .attr('data-direction', 0)
         .data('cell-index', 0)
         .attr('data-cell-index', 0);
 
     const $last = $componentContainer.clone(true);
     $last
+        .data('direction', 0)
+        .attr('data-direction', 0)
         .data('cell-index', 1)
         .attr('data-cell-index', 1);
 
     $componentContainer.html([$first, $last]);
     $componentContainer
-        .addClass('dashboard-component-split')
+        .addClass('dashboard-component-split-horizontally')
+        .removeClass('empty');
+}
+
+function splitCellVertically() {
+    const $button = $(this);
+    const $componentContainer = $button.closest('.dashboard-component');
+
+    $button.siblings(`.split-cell`).remove();
+    $button.remove();
+    const $addComponentButton = $componentContainer.find('button[name="add-component-button"]');
+    $addComponentButton.off('click');
+    $addComponentButton.on('click', ({target} = {}) => openModalComponentTypeFirstStep($(target), true));
+
+    const $first = $componentContainer.clone(true);
+    $first
+        .data('direction', 1)
+        .attr('data-direction', 1)
+        .data('cell-index', 0)
+        .attr('data-cell-index', 0);
+
+    const $last = $componentContainer.clone(true);
+    $last
+        .data('direction', 1)
+        .attr('data-direction', 1)
+        .data('cell-index', 1)
+        .attr('data-cell-index', 1);
+
+    $componentContainer.html([$first, $last]);
+    $componentContainer
+        .addClass('dashboard-component-split-vertically')
         .removeClass('empty');
 }
 
 function convertIndex(indexStr) {
     return (indexStr === undefined || indexStr === null || indexStr === '') ? null : Number(indexStr);
+}
+
+function removeUploadedFile($element) {
+    const $modal = $element.closest('.modal');
+    const $previewTypeLogo = $modal.find('.preview-component-image');
+    const $uploadTypeLogo = $modal.find('.upload-component-image');
+    const $titleTypeLogo = $modal.find('.title-component-image');
+    const $logoContent = $modal.find('.external-image-content');
+    const $deleteLogo = $modal.find('.delete-logo');
+
+    const uploadedFile = $uploadTypeLogo[0];
+    $previewTypeLogo.addClass('d-none');
+    if($modal.find('.title-component-image').length > 0) {
+        $modal.find('.title-component-image').attr('title', '');
+        $modal.find('.title-component-image').text('');
+    }
+    showBSAlert(`Le fichier a bien été supprimé`, `success`);
+
+    $logoContent.val('');
+    $deleteLogo.addClass('d-none');
+    if(uploadedFile.files.length > 0) {
+        delete uploadedFile.files[0];
+        $previewTypeLogo.attr('src', '');
+        $uploadTypeLogo.val('');
+        $titleTypeLogo.text('');
+        $titleTypeLogo.attr('title', '');
+
+        droppedFiles = [];
+    }
 }

@@ -1,9 +1,7 @@
 <?php
-/**
- * Commande Cron exécutée tous les jours à 20h :
- *
- */
-// 0 20 * * 1-6
+// At 20:00
+// 0 20 * * *
+
 namespace App\Command;
 
 use App\Entity\AverageRequestTime;
@@ -13,9 +11,8 @@ use App\Entity\Dispatch;
 use App\Entity\Handling;
 use App\Entity\TransferRequest;
 use App\Entity\Type;
-use App\Helper\Stream;
+use WiiCommon\Helper\Stream;
 use App\Service\DateService;
-use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

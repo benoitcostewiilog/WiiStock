@@ -1,14 +1,13 @@
 <?php
-/**
- * Commande Cron exécutée toute les minutes tous les jours de 7h a 19h excepté le dimanche :
- *
- */
+// At every 5th minute
+// */5 * * * *
 
-// */1 6-18 * * 1-6
 namespace App\Command;
 
 use App\Entity\DaysWorked;
+use App\Entity\Type;
 use App\Entity\WorkFreeDay;
+use WiiCommon\Helper\Stream;
 use App\Service\DashboardService;
 use App\Service\WiilockService;
 use Doctrine\ORM\EntityManager;
@@ -65,12 +64,17 @@ class DashboardFeedCommand extends Command {
         $daysWorked = $workedDaysRepository->getWorkedTimeForEachDaysWorked();
         $freeWorkDays = $workFreeDaysRepository->getWorkFreeDaysToDateTime();
 
+        $calculateLatePack = false;
+
         foreach ($components as $component) {
             $componentType = $component->getType();
             $meterKey = $componentType->getMeterKey();
             switch ($meterKey) {
                 case Dashboard\ComponentType::ONGOING_PACKS:
                     $this->dashboardService->persistOngoingPack($entityManager, $component);
+                    break;
+                case Dashboard\ComponentType::DAILY_HANDLING_INDICATOR:
+                    $this->dashboardService->persistDailyHandlingIndicator($entityManager, $component);
                     break;
                 case Dashboard\ComponentType::DROP_OFF_DISTRIBUTED_PACKS:
                     $this->dashboardService->persistDroppedPacks($entityManager, $component);
@@ -109,15 +113,23 @@ class DashboardFeedCommand extends Command {
                     $this->dashboardService->persistDailyDispatches($entityManager, $component);
                     break;
                 case Dashboard\ComponentType::DAILY_HANDLING:
-                    $this->dashboardService->persistDailyHandling($entityManager, $component);
+                case Dashboard\ComponentType::DAILY_OPERATIONS:
+                    $this->dashboardService->persistDailyHandlingOrOperations($entityManager, $component);
                     break;
                 case Dashboard\ComponentType::REQUESTS_TO_TREAT:
                 case Dashboard\ComponentType::ORDERS_TO_TREAT:
                     $this->dashboardService->persistEntitiesToTreat($entityManager, $component, $daysWorked, $freeWorkDays);
                     break;
+                case Dashboard\ComponentType::LATE_PACKS:
+                    $calculateLatePack = true;
+                    break;
                 default:
                     break;
             }
+        }
+
+        if ($calculateLatePack) {
+            $this->dashboardService->persistEntitiesLatePack($entityManager);
         }
 
         $entityManager->flush();

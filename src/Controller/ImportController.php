@@ -17,7 +17,7 @@ use App\Entity\ReferenceArticle;
 use App\Entity\Statut;
 use App\Entity\Utilisateur;
 use App\Exceptions\ImportException;
-use App\Helper\StringHelper;
+use WiiCommon\Helper\StringHelper;
 use App\Service\AttachmentService;
 use App\Service\ImportService;
 use App\Service\UserService;
@@ -184,7 +184,7 @@ class ImportController extends AbstractController
                             break;
                         case Import::ENTITY_REF:
                             $categoryCL = CategorieCL::REFERENCE_ARTICLE;
-                            $fieldsToAdd = ['type', 'emplacement', 'catégorie d\'inventaire', 'statut', 'reference', 'managers'];
+                            $fieldsToAdd = ['type', 'emplacement', 'catégorie d\'inventaire', 'statut', 'reference', 'managers', 'buyer'];
                             $fieldNames = array_merge($fieldNames, $fieldsToAdd);
                             break;
                         case Import::ENTITY_ART_FOU:
@@ -192,7 +192,7 @@ class ImportController extends AbstractController
                             $fieldNames = array_merge($fieldNames, $fieldsToAdd);
                             break;
                         case Import::ENTITY_RECEPTION:
-                            $fieldsToAdd = ['anomalie', 'fournisseur', 'transporteur', 'référence', 'location', 'quantité à recevoir', 'orderDate', 'expectedDate'];
+                            $fieldsToAdd = ['anomalie', 'fournisseur', 'transporteur', 'référence', 'location','storageLocation', 'quantité à recevoir', 'orderDate', 'expectedDate'];
                             $fieldNames = array_merge($fieldNames, $fieldsToAdd);
                             break;
                     }

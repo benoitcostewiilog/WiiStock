@@ -274,14 +274,7 @@ class DemandeCollecteService
     public function parseRequestForCard(Collecte $request,
                                         DateService $dateService,
                                         array $averageRequestTimesByType,
-                                        ?int $mode = null) {
-        if(!$mode || $mode !== DashboardSettingsService::MODE_EXTERNAL) {
-            $hasRightToSeeRequest = $this->userService->hasRightFunction(Menu::DEM, Action::DISPLAY_DEM_COLL);
-            $hasRightToSeeOrder = $this->userService->hasRightFunction(Menu::ORDRE, Action::DISPLAY_ORDRE_COLL);
-        } else {
-            $hasRightToSeeRequest = false;
-            $hasRightToSeeOrder = false;
-        }
+                                        string $backgroundColor) {
 
         $requestStatus = $request->getStatut() ? $request->getStatut()->getNom() : '';
         $requestType = $request->getType() ? $request->getType()->getLabel() : '';
@@ -290,13 +283,13 @@ class DemandeCollecteService
         /** @var OrdreCollecte $order */
         $order = $request->getOrdresCollecte()->last();
 
-        if ($requestStatus === Collecte::STATUT_BROUILLON && $hasRightToSeeRequest) {
-            $href = $this->router->generate('collecte_show', ['id' => $request->getId()]);
-        } else if (in_array($requestStatus, [Collecte::STATUT_INCOMPLETE, Collecte::STATUT_A_TRAITER])
-                   && $hasRightToSeeOrder
+         if (in_array($requestStatus, [Collecte::STATUT_INCOMPLETE, Collecte::STATUT_A_TRAITER])
                    && $order) {
             $href = $this->router->generate('ordre_collecte_show', ['id' => $order->getId()]);
-        }
+         }
+         else {
+             $href = $this->router->generate('collecte_show', ['id' => $request->getId()]);
+         }
 
         $articlesCounter = $order
             ? ($order->getArticles()->count() + $order->getOrdreCollecteReferences()->count())
@@ -358,6 +351,7 @@ class DemandeCollecteService
             'progress' => $statusesToProgress[$requestStatus] ?? 0,
             'progressBarColor' => '#2ec2ab',
             'progressBarBGColor' => $requestStatus === Collecte::STATUT_BROUILLON ? 'white' : 'lightGrey',
+            'backgroundColor' => $backgroundColor
         ];
     }
 }

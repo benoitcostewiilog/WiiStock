@@ -122,8 +122,9 @@ class ArticleQuantityNotifier {
     }
 
     private function treatAlert(EntityManagerInterface $entityManager,
-                                Article $article) {
-        if($article->getExpiryDate()) {
+                                Article $article)
+    {
+        if ($article->getExpiryDate()) {
             $now = new DateTime("now", new DateTimeZone("Europe/Paris"));
             $expires = clone $now;
             $expires->modify("{$this->expiryDelay}day");
@@ -131,15 +132,15 @@ class ArticleQuantityNotifier {
             $existing = $entityManager->getRepository(Alert::class)->findForArticle($article, Alert::EXPIRY);
 
             //more than one expiry alert is an invalid state, so remove them to reset
-            if(count($existing) > 1) {
-                foreach($existing as $alert) {
+            if (count($existing) > 1) {
+                foreach ($existing as $alert) {
                     $entityManager->remove($alert);
                 }
 
                 $existing = null;
             }
 
-            if($expires >= $article->getExpiryDate() && !$existing) {
+            if ($expires >= $article->getExpiryDate() && !$existing) {
                 $alert = new Alert();
                 $alert->setArticle($article);
                 $alert->setType(Alert::EXPIRY);
@@ -147,19 +148,16 @@ class ArticleQuantityNotifier {
 
                 $entityManager->persist($alert);
 
-                $managers = $article->getArticleFournisseur()
-                    ->getReferenceArticle()
-                    ->getManagers()
-                    ->map(function (Utilisateur $user) {
-                        return $user->getEmail();
-                    })
-                    ->toArray();
-
-                $this->alertService->sendExpiryMails($managers, $article, $this->expiryDelay);
-            } else if($now < $article->getExpiryDate() && $existing) {
+                if ($article->getStatut()->getCode() !== Article::STATUT_INACTIF) {
+                    $managers = $article->getArticleFournisseur()
+                        ->getReferenceArticle()
+                        ->getManagers()
+                        ->toArray();
+                    $this->alertService->sendExpiryMails($managers, $article, $this->expiryDelay);
+                }
+            } else if ($now < $article->getExpiryDate() && $existing) {
                 $entityManager->remove($existing[0]);
             }
         }
     }
-
 }

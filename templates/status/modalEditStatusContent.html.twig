@@ -8,7 +8,9 @@
                     title="Entité"
                     class="form-control needed"
                     disabled>
-                <option selected value="{{ status.categorie.id }}">{{ status.categorie.nom }}</option>
+                <option selected value="{{ status.categorie.id }}"
+                        data-is-dispatch="{{ status.categorie.nom == constant('App\\Entity\\CategorieStatut::DISPATCH') }}"
+                        data-is-purchase-request="{{  status.categorie.nom == constant('App\\Entity\\CategorieStatut::PURCHASE_REQUEST') }}">{{ status.categorie.nom }}</option>
             </select>
         </div>
 
@@ -50,11 +52,14 @@
             <select name="state" class="data form-control needed" onchange="statusStateChanged($(this))">
                 {% for state in states %}
                     <option value="{{ state.id }}"
+                            data-needs-automatic-reception-creation="{{ state.id == constant('App\\Entity\\Statut::TREATED') }}"
                             class="{{
-                                state.id == constant('App\\Entity\\Statut::DRAFT') ? 'dispatch-fields' :
-                                state.id == constant('App\\Entity\\Statut::DISPUTE') ? 'arrival-fields'
+                            (state.id == constant('App\\Entity\\Statut::DRAFT')) ? 'dispatch-fields purchase-request-fields' :
+                            (state.id == constant('App\\Entity\\Statut::PARTIAL')) ? 'dispatch-fields' :
+                            (state.id == constant('App\\Entity\\Statut::DISPUTE')) ? 'arrival-fields' :
+                            (state.id == constant('App\\Entity\\Statut::IN_PROGRESS')) ? 'handling-fields purchase-request-fields'
                             }}"
-                            {{ state.id == status.state ? 'selected' }}>
+                        {{ state.id == status.state ? 'selected' }}>
                         {{ state.label }}
                     </option>
                 {% endfor %}
@@ -65,6 +70,7 @@
             status.categorie.nom == constant('App\\Entity\\CategorieStatut::DISPATCH')
             or status.categorie.nom == constant('App\\Entity\\CategorieStatut::HANDLING')
             or status.categorie.nom == constant('App\\Entity\\CategorieStatut::ARRIVAGE')
+            or status.categorie.nom == constant('App\\Entity\\CategorieStatut::PURCHASE_REQUEST')
         ) %}
         <div class="col-12 form-group {{ hideDisputeComment ? 'd-none' }}">
             <label for="username">Commentaire litige</label>
@@ -80,12 +86,12 @@
             </label>
         </div>
 
-        {% set hideSendNotifToBuyer = (
+        {% set hideSendNotifToBuyers = (
             status.categorie.nom == constant('App\\Entity\\CategorieStatut::DISPATCH')
             or status.categorie.nom == constant('App\\Entity\\CategorieStatut::HANDLING')
             or status.categorie.nom == constant('App\\Entity\\CategorieStatut::ARRIVAGE')
         ) %}
-        <div class="col-12 form-group {{ hideSendNotifToBuyer ? 'd-none'}}">
+        <div class="col-12 form-group {{ hideSendNotifToBuyers ? 'd-none'}}">
             <label>Envoi de mails aux acheteurs ?</label>
             <label class="switch">
                 <input class="checkbox" type="checkbox" name="sendMails" {{ status.sendNotifToBuyer ? 'checked' }}/>
@@ -96,19 +102,30 @@
             status.categorie.nom == constant('App\\Entity\\CategorieStatut::ARRIVAGE')
         ) %}
         <div class="col-12 form-group {{ hideSendNotifToDeclarant ? 'd-none'}}">
-            <label>Envoi de mails au déclarant ?</label>
+            <label>Envoi de mails au demandeur ?</label>
             <label class="switch">
                 <input class="checkbox" type="checkbox" name="sendMailsDeclarant" {{ status.sendNotifToDeclarant ? 'checked' }}/>
                 <span class="slider round"></span>
             </label>
         </div>
-        {% set hideSendNotifToBuyer = (
-            status.categorie.nom == constant('App\\Entity\\CategorieStatut::HANDLING')
-            or status.categorie.nom == constant('App\\Entity\\CategorieStatut::ARRIVAGE')
+
+        {% set showAutomaticReceptionCreation = (status.categorie.nom == constant('App\\Entity\\CategorieStatut::PURCHASE_REQUEST')
+            and (status.state == constant('App\\Entity\\Statut::TREATED'))
+        ) %}
+        <div class="col-12 form-group purchase-request-fields automatic-reception-creation {{ not showAutomaticReceptionCreation ? 'd-none' }}">
+            <label>Création automatique d'une réception ?</label>
+            <label class="switch">
+                <input class="checkbox" type="checkbox" name="automaticReceptionCreation" {{ status.automaticReceptionCreation ? 'checked' }}>
+                <span class="slider round"></span>
+            </label>
+        </div>
+
+        {% set hideSendNotifToBuyer = ( status.categorie.nom == constant('App\\Entity\\CategorieStatut::ARRIVAGE')
             or status.categorie.nom == constant('App\\Entity\\CategorieStatut::LITIGE_RECEPT')
+            or status.categorie.nom == constant('App\\Entity\\CategorieStatut::PURCHASE_REQUEST')
         ) %}
         <div class="col-12 form-group {{ hideSendNotifToBuyer ? 'd-none' }}">
-            <label>Envoi de mails au destinataire ?</label>
+            <label>Envoi de mails aux destinataires ?</label>
             <label class="switch">
                 <input class="checkbox" type="checkbox" name="sendMailsRecipient" {{ status.sendNotifToRecipient ? 'checked' }}/>
                 <span class="slider round"></span>
@@ -129,6 +146,13 @@
             <label>Synchronisation nomade ?</label>
             <label class="switch">
                 <input class="checkbox" type="checkbox" name="needsMobileSync" {{ status.needsMobileSync ? 'checked' }}/>
+                <span class="slider round"></span>
+            </label>
+        </div>
+        <div class="col-12 form-group handling-fields">
+            <label>Commentaire obligatoire sur nomade ?</label>
+            <label class="switch">
+                <input class="checkbox" type="checkbox" name="commentNeeded" {{ status.commentNeeded ? 'checked' }}>
                 <span class="slider round"></span>
             </label>
         </div>

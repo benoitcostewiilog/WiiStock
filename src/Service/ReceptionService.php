@@ -11,60 +11,76 @@ use App\Entity\Demande;
 use App\Entity\FieldsParam;
 use App\Entity\FiltreSup;
 use App\Entity\Fournisseur;
+use App\Entity\ParametrageGlobal;
 use App\Entity\Reception;
 use App\Entity\Statut;
 use App\Entity\Transporteur;
 use App\Entity\Type;
 use App\Entity\Utilisateur;
+use App\Helper\FormatHelper;
 use DateTime;
 use DateTimeZone;
-use Doctrine\ORM\NonUniqueResultException;
-use Exception;
+use InvalidArgumentException;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Twig\Environment as Twig_Environment;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Routing\RouterInterface;
-use Twig\Error\LoaderError;
-use Twig\Error\RuntimeError;
-use Twig\Error\SyntaxError;
 
 class ReceptionService
 {
-    private $templating;
-    private $router;
-    private $entityManager;
-    private $fieldsParamService;
-    private $stringService;
-    private $translator;
-    private $freeFieldService;
-    private $uniqueNumberService;
 
-    public function __construct(RouterInterface $router,
-                                FieldsParamService $fieldsParamService,
-                                StringService $stringService,
-                                FreeFieldService $champLibreService,
-                                TranslatorInterface $translator,
-                                EntityManagerInterface $entityManager,
-                                Twig_Environment $templating,
-                                UniqueNumberService $uniqueNumberService)
-    {
-        $this->templating = $templating;
-        $this->freeFieldService = $champLibreService;
-        $this->entityManager = $entityManager;
-        $this->stringService = $stringService;
-        $this->fieldsParamService = $fieldsParamService;
-        $this->router = $router;
-        $this->translator = $translator;
-        $this->uniqueNumberService = $uniqueNumberService;
-    }
+    public const INVALID_EXPECTED_DATE = 'invalid-expected-date';
+    public const INVALID_ORDER_DATE = 'invalid-order-date';
+    public const INVALID_LOCATION = 'invalid-location';
+    public const INVALID_STORAGE_LOCATION = 'invalid-storage-location';
+    public const INVALID_CARRIER = 'invalid-carrier';
+    public const INVALID_PROVIDER = 'invalid-provider';
 
-    public function getDataForDatatable(Utilisateur $user, $params = null)
+
+    /** @Required */
+    public Twig_Environment $templating;
+
+    /** @Required */
+    public EntityManagerInterface $entityManager;
+
+    /** @Required */
+    public FieldsParamService $fieldsParamService;
+
+    /** @Required */
+    public StringService $stringService;
+
+    /** @Required */
+    public TranslatorInterface $translator;
+
+    /** @Required */
+    public FreeFieldService $freeFieldService;
+
+    /** @Required */
+    public UniqueNumberService $uniqueNumberService;
+
+    /** @Required */
+    public FormService $formService;
+
+    /** @Required  */
+    public GlobalParamService $globalParamService;
+
+
+    public function getDataForDatatable(Utilisateur $user, $params = null, $purchaseRequestFilter = null)
     {
 
         $filtreSupRepository = $this->entityManager->getRepository(FiltreSup::class);
         $receptionRepository = $this->entityManager->getRepository(Reception::class);
 
-        $filters = $filtreSupRepository->getFieldAndValueByPageAndUser(FiltreSup::PAGE_RECEPTION, $user);
+        if ($purchaseRequestFilter) {
+            $filters = [
+                [
+                    'field' => 'purchaseRequest',
+                    'value' => $purchaseRequestFilter
+                ]
+            ];
+        } else {
+            $filters = $filtreSupRepository->getFieldAndValueByPageAndUser(FiltreSup::PAGE_RECEPTION, $user);
+        }
+
         $queryResult = $receptionRepository->findByParamAndFilters($params, $filters);
 
         $receptions = $queryResult['data'];
@@ -81,17 +97,6 @@ class ReceptionService
         ];
     }
 
-
-    /**
-     * @param EntityManagerInterface $entityManager
-     * @param Utilisateur|null $currentUser
-     * @param array $data
-     * @param bool $fromImport
-     * @param $rowIndex
-     * @return Reception
-     * @throws NonUniqueResultException
-     * @throws Exception
-     */
     public function createAndPersistReception(EntityManagerInterface $entityManager,
                                               ?Utilisateur $currentUser,
                                               array $data,
@@ -103,8 +108,13 @@ class ReceptionService
         $ransporteurRepository = $entityManager->getRepository(Transporteur::class);
         $emplacementRepository = $entityManager->getRepository(Emplacement::class);
         if(!empty($data['anomalie'])) {
-            $anomaly = filter_var($data['anomalie'], FILTER_VALIDATE_BOOLEAN);
-
+            $anomaly = (
+                isset($data['anomalie'])
+                && (
+                    filter_var($data['anomalie'], FILTER_VALIDATE_BOOLEAN)
+                    || in_array($data['anomalie'], ['oui', 'Oui', 'OUI'])
+                )
+            );
             $statusCode = $anomaly
                 ? Reception::STATUT_ANOMALIE
                 : Reception::STATUT_EN_ATTENTE;
@@ -123,6 +133,9 @@ class ReceptionService
         if(!empty($data['fournisseur'])) {
             if($fromImport) {
                 $fournisseur = $fournisseurRepository->findOneBy(['codeReference' => $data['fournisseur']]);
+                if (!isset($fournisseur)) {
+                    throw new InvalidArgumentException(self::INVALID_PROVIDER);
+                }
             } else {
                 $fournisseur = $fournisseurRepository->find(intval($data['fournisseur']));
             }
@@ -130,9 +143,21 @@ class ReceptionService
                 ->setFournisseur($fournisseur);
         }
 
+        if ($fromImport && (!isset($data['location']) || empty($data['location']))) {
+            $defaultLocation = $this->globalParamService->getParamLocation(ParametrageGlobal::DEFAULT_LOCATION_RECEPTION);
+            if (isset($defaultLocation)) {
+                $location = $emplacementRepository->find(intval($defaultLocation['id']));
+                $reception
+                    ->setLocation($location);
+            }
+        }
+
         if(!empty($data['location'])) {
             if($fromImport) {
                 $location = $emplacementRepository->findOneBy(['label' => $data['location']]);
+                if (!isset($location)) {
+                    throw new InvalidArgumentException(self::INVALID_LOCATION);
+                }
             } else {
                 $location = $emplacementRepository->find(intval($data['location']));
             }
@@ -143,6 +168,9 @@ class ReceptionService
         if(!empty($data['transporteur'])) {
             if($fromImport) {
                 $transporteur = $ransporteurRepository->findOneBy(['code' => $data['transporteur']]);
+                if (!isset($transporteur)) {
+                    throw new InvalidArgumentException(self::INVALID_CARRIER);
+                }
             } else {
                 $transporteur = $ransporteurRepository->find(intval($data['transporteur']));
             }
@@ -151,28 +179,42 @@ class ReceptionService
         }
 
         if(!empty($data['storageLocation'])) {
-            $storageLocation = $emplacementRepository->find(intval($data['storageLocation']));
-            $reception->setStorageLocation($storageLocation);
+            if($fromImport) {
+                $storageLocation = $emplacementRepository->findOneBy(['label' => $data['storageLocation']]);
+            if (!isset($storageLocation)) {
+                    throw new InvalidArgumentException(self::INVALID_STORAGE_LOCATION);
+                }
+            } else {
+                $storageLocation = $emplacementRepository->find(intval($data['storageLocation']));
+            }
+            $reception
+                ->setStorageLocation($storageLocation);
         }
 
         if(!empty($data['manualUrgent'])) {
-            $reception->setManualUrgent(filter_var($data['manualUrgent'], FILTER_VALIDATE_BOOLEAN));
+            $reception->setManualUrgent(
+                isset($data['manualUrgent'])
+                && (
+                    filter_var($data['manualUrgent'], FILTER_VALIDATE_BOOLEAN)
+                    || in_array($data['manualUrgent'], ['oui', 'Oui', 'OUI'])
+                )
+            );
         }
 
         $reception
             ->setOrderNumber(!empty($data['orderNumber']) ? $data['orderNumber'] : null)
-            ->setCommentaire(!empty($data['commentaire']) ? $data['commentaire'] : null)
             ->setStatut($statut)
             ->setNumber($numero)
             ->setDate($date)
-            ->setOrderNumber(!empty($data['orderNumber']) ? $data['orderNumber'] : null)
             ->setUtilisateur($currentUser)
             ->setType($type)
             ->setCommentaire(!empty($data['commentaire']) ? $data['commentaire'] : null);
 
         // Date commande provenant des imports de réception
         if ($fromImport && isset($data['orderDate'])) {
-            $reception->setDateCommande(DateTime::createFromFormat('d/m/Y', $data['orderDate'], new DateTimeZone("Europe/Paris")) ?: null);
+            $this->formService->validateDate($data['orderDate'], self::INVALID_ORDER_DATE);
+            $orderDate = DateTime::createFromFormat('d/m/Y', $data['orderDate'] ?: '', new DateTimeZone("Europe/Paris")) ?: null;
+            $reception->setDateCommande($orderDate);
         }
         // Date commande pour création d'une réception standard
         else {
@@ -184,7 +226,9 @@ class ReceptionService
 
         // Date attendue provenant des imports de réception
         if ($fromImport && isset($data['expectedDate'])) {
-            $reception->setDateAttendue(DateTime::createFromFormat('d/m/Y', $data['expectedDate'], new DateTimeZone("Europe/Paris")) ?: null);
+            $this->formService->validateDate($data['expectedDate'], self::INVALID_ORDER_DATE);
+            $expectedDate = DateTime::createFromFormat('d/m/Y', $data['expectedDate'] ?: '', new DateTimeZone("Europe/Paris")) ?: null;
+            $reception->setDateAttendue($expectedDate);
         }
         // Date attendue pour création d'une réception standard
         else {
@@ -198,22 +242,15 @@ class ReceptionService
         return $reception;
     }
 
-    /**
-     * @param Reception $reception
-     * @return array
-     * @throws LoaderError
-     * @throws RuntimeError
-     * @throws SyntaxError
-     */
     public function dataRowReception(Reception $reception)
     {
         return [
             "id" => ($reception->getId()),
-            "Statut" => ($reception->getStatut() ? $reception->getStatut()->getNom() : ''),
-            "Date" => ($reception->getDate() ? $reception->getDate() : '')->format('d/m/Y H:i'),
-            "dateAttendue" => ($reception->getDateAttendue() ? $reception->getDateAttendue()->format('d/m/Y H:i'): '' ),
-            "DateFin" => ($reception->getDateFinReception() ? $reception->getDateFinReception()->format('d/m/Y H:i') : ''),
-            "Fournisseur" => ($reception->getFournisseur() ? $reception->getFournisseur()->getNom() : ''),
+            "Statut" => FormatHelper::status($reception->getStatut()),
+            "Date" => FormatHelper::datetime($reception->getDate()),
+            "dateAttendue" => FormatHelper::date($reception->getDateAttendue()),
+            "DateFin" => FormatHelper::datetime($reception->getDateFinReception()),
+            "Fournisseur" => FormatHelper::provider($reception->getFournisseur()),
             "Commentaire" => $reception->getCommentaire() ?: '',
             "receiver" => implode(', ', array_unique(
                 $reception->getDemandes()
@@ -227,7 +264,7 @@ class ReceptionService
             ),
             "number" => $reception->getNumber() ?: "",
             "orderNumber" => $reception->getOrderNumber() ?: "",
-            "storageLocation" => $reception->getStorageLocation() ? $reception->getStorageLocation()->getLabel() : '',
+            "storageLocation" => FormatHelper::location($reception->getStorageLocation()),
             "emergency" => $reception->isManualUrgent() || $reception->hasUrgentArticles(),
             'Actions' => $this->templating->render(
                 'reception/datatableReceptionRow.html.twig',
@@ -350,5 +387,64 @@ class ReceptionService
             ]]
                 : []
         );
+    }
+
+    public function getAlreadySavedReception(array &$collection, ?string $orderNumber, ?string $expectedDate, callable $onAdd = null): ?Reception {
+        $reception = null;
+        foreach($collection as $receptionIntel) {
+            if ($orderNumber === $receptionIntel['orderNumber']
+                && $expectedDate === $receptionIntel['expectedDate']) {
+                $reception = $receptionIntel['reception'];
+                break;
+            }
+        }
+
+        if (!$reception) {
+            $receptionRepository = $this->entityManager->getRepository(Reception::class);
+            $receptions = $receptionRepository->findBy(
+                [
+                    'orderNumber' => $orderNumber,
+                    'dateAttendue' => $expectedDate
+                        ? DateTime::createFromFormat('d/m/Y', $expectedDate, new DateTimeZone("Europe/Paris")) ?: null
+                        : null
+                ],
+                [
+                    'id' => 'DESC'
+                ]);
+
+            if (!empty($receptions)) {
+                $reception = $receptions[0];
+                $collection[] = [
+                    'orderNumber' => $orderNumber,
+                    'expectedDate' => $expectedDate,
+                    'reception' => $reception
+                ];
+
+                if(isset($onAdd)) {
+                    $onAdd();
+                }
+            }
+        }
+
+        return $reception;
+    }
+
+    public function setAlreadySavedReception(array &$collection, ?string $orderNumber, ?string $expectedDate, Reception $reception): void {
+        $receptionSaved = false;
+        foreach($collection as &$receptionIntel) {
+            if ($orderNumber === $receptionIntel['orderNumber']
+                && $expectedDate === $receptionIntel['expectedDate']) {
+                $receptionIntel['reception'] = $reception;
+                $receptionSaved = true;
+                break;
+            }
+        }
+        if (!$receptionSaved) {
+            $collection[] = [
+                'orderNumber' => $orderNumber,
+                'expectedDate' => $expectedDate,
+                'reception' => $reception
+            ];
+        }
     }
 }

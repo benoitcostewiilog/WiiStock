@@ -13,7 +13,7 @@ use App\Entity\Statut;
 use App\Entity\Transporteur;
 use App\Entity\Type;
 use App\Entity\Utilisateur;
-use App\Helper\Stream;
+use WiiCommon\Helper\Stream;
 use App\Service\DashboardSettingsService;
 use App\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -38,9 +38,6 @@ class DashboardSettingsController extends AbstractController {
     /**
      * @Route("/", name="dashboard_settings", methods={"GET"})
      * @HasPermission({Menu::PARAM, Action::DISPLAY_DASHBOARDS})
-     * @param DashboardSettingsService $dashboardSettingsService
-     * @param EntityManagerInterface $entityManager
-     * @return Response
      */
     public function settings(DashboardSettingsService $dashboardSettingsService,
                              EntityManagerInterface $entityManager): Response {
@@ -298,6 +295,7 @@ class DashboardSettingsController extends AbstractController {
                     'templateName' => $templateName,
                     'rowIndex' => $request->request->get('rowIndex'),
                     'columnIndex' => $request->request->get('columnIndex'),
+                    'direction' => $request->request->get('direction'),
                     'cellIndex' => $request->request->get('cellIndex'),
                     'arrivalTypes' => $arrivalTypes,
                     'handlingTypes' => $handlingTypes,
@@ -334,10 +332,40 @@ class DashboardSettingsController extends AbstractController {
                                             Dashboard\ComponentType $componentType): Response {
         if($request->request->has("values")) {
             $values = json_decode($request->request->get("values"), true);
+            if (isset($values['jsonConfig'])) {
+                $valuesDecoded = json_decode($values['jsonConfig'], true);
+                if (isset($valuesDecoded['locations']) && isset($values['locations'])) {
+                    $valuesDecoded['locations'] = $values['locations'];
+                }
+                if (isset($valuesDecoded['natures']) && isset($values['natures'])) {
+                    $valuesDecoded['natures'] = $values['natures'];
+                }
+                if (isset($valuesDecoded['handlingTypes']) && isset($values['handlingTypes'])) {
+                    $valuesDecoded['handlingTypes'] = $values['handlingTypes'];
+                }
+                if (isset($valuesDecoded['handlingStatuses']) && isset($values['handlingStatuses'])) {
+                    $valuesDecoded['handlingStatuses'] = $values['handlingStatuses'];
+                }
+                $values = $valuesDecoded;
+            }
+            Stream::from($componentType->getExampleValues())
+                ->each(function($conf, $key) use (&$values) {
+                    if (str_starts_with($key, 'fontSize-')
+                        || str_starts_with($key, 'textColor-')
+                        || str_starts_with($key, 'textBold-')
+                        || str_starts_with($key, 'textItalic-')
+                        || str_starts_with($key, 'textUnderline-')) {
+                        if (!isset($values[$key])) {
+                            $values[$key] = $conf;
+                        }
+                    }
+                });
+            if ($values && isset($values['chartColors']) && is_string($values['chartColors'])){
+                $values['chartColors'] = json_decode($values['chartColors'], true);
+            }
         } else {
             $values = $componentType->getExampleValues();
         }
-
         return $this->json([
             'success' => true,
             'exampleValues' => $dashboardSettingsService->serializeValues($entityManager, $componentType, $values, DashboardSettingsService::MODE_EDIT, true),

@@ -40,11 +40,6 @@ let submitDeleteCollecte = $("#submitDeleteCollecte");
 let urlDeleteCollecte = Routing.generate('collecte_delete', true)
 InitModal(modalDeleteCollecte, submitDeleteCollecte, urlDeleteCollecte);
 
-let modalModifyCollecte = $('#modalEditCollecte');
-let submitModifyCollecte = $('#submitEditCollecte');
-let urlModifyCollecte = Routing.generate('collecte_edit', true);
-InitModal(modalModifyCollecte, submitModifyCollecte, urlModifyCollecte);
-
 function ajaxGetCollecteArticle(select) {
     let $selection = $('#selection');
     let $editNewArticle = $('#editNewArticle');
@@ -60,7 +55,8 @@ function ajaxGetCollecteArticle(select) {
             }
             $(modalNewArticle).find('.modal-footer').removeClass('d-none');
             toggleRequiredChampsLibres(select.closest('.modal').find('#type'), 'edit');
-            Select2.location($('.ajax-autocomplete-location-edit'));
+            Select2Old.location($('.ajax-autocomplete-location-edit'));
+            Select2Old.user($('.ajax-autocomplete-user-edit[name=managers]'));
             initEditor(modalNewArticle + ' .editor-container-edit');
             $('.list-multiple').select2();
         }
@@ -108,7 +104,7 @@ let ajaxEditArticle = function (select) {
 
     $.post(path, JSON.stringify(params), function(data) {
         $('#editNewArticle').html(data);
-        Select2.location($('.ajax-autocomplete-location-edit'));
+        Select2Old.location($('.ajax-autocomplete-location-edit'));
         initEditor('.editor-container-edit');
     }, 'json');
 }

@@ -127,6 +127,7 @@ class ArrivageRepository extends EntityRepository
             ->addSelect('arrivage.projectNumber AS projectNumber')
             ->addSelect('arrivage.businessUnit AS businessUnit')
             ->addSelect('arrivage.freeFields AS freeFields')
+            ->addSelect('join_dropLocation.label AS dropLocation')
             ->leftJoin('arrivage.destinataire', 'recipient')
             ->leftJoin('arrivage.fournisseur', 'fournisseur')
             ->leftJoin('arrivage.transporteur', 'transporteur')
@@ -134,6 +135,7 @@ class ArrivageRepository extends EntityRepository
             ->leftJoin('arrivage.statut', 'status')
             ->leftJoin('arrivage.utilisateur', 'user')
             ->leftJoin('arrivage.type', 'arrivalType')
+            ->leftJoin('arrivage.dropLocation', 'join_dropLocation')
             ->getQuery()
             ->iterate(null, Query::HYDRATE_ARRAY);
 
@@ -320,6 +322,13 @@ class ArrivageRepository extends EntityRepository
                         ->andWhere("f2.id in (:fournisseurId)")
                         ->setParameter('fournisseurId', $value);
                     break;
+                case 'emplacement':
+                    $value = explode(',', $filter['value']);
+                    $qb
+                        ->join('a.dropLocation', 'filter_drop_location')
+                        ->andWhere("filter_drop_location.id in (:locationId)")
+                        ->setParameter('locationId', $value);
+                    break;
                 case 'carriers':
                     $value = explode(',', $filter['value']);
                     $qb
@@ -379,6 +388,7 @@ class ArrivageRepository extends EntityRepository
                         ->leftJoin('a.acheteurs', 'ach3')
                         ->leftJoin('a.utilisateur', 'u3')
                         ->leftJoin('a.type', 'search_type')
+                        ->leftJoin('a.dropLocation', 'search_dropLocation')
                         ->andWhere("(
                             a.numeroArrivage LIKE :value
                             OR t3.label LIKE :value
@@ -393,6 +403,7 @@ class ArrivageRepository extends EntityRepository
                             OR search_type.label LIKE :value
                             OR a.businessUnit LIKE :value
                             OR a.projectNumber LIKE :value
+                            OR search_dropLocation.label LIKE :value
                             OR DATE_FORMAT(a.date, '%d/%m/%Y') LIKE :value
                             OR JSON_SEARCH(a.freeFields, 'one', '$searchValue') IS NOT NULL
                         )")
@@ -446,6 +457,10 @@ class ArrivageRepository extends EntityRepository
                         $qb
                             ->leftJoin('a.statut', 'order_status')
                             ->orderBy('order_status.nom', $order);
+                    } else if ($column === 'dropLocation') {
+                        $qb
+                            ->leftJoin('a.dropLocation', 'order_dropLocation')
+                            ->orderBy('order_dropLocation.label', $order);
                     } else {
                         $freeFieldId = VisibleColumnService::extractFreeFieldId($column);
                         if(is_numeric($freeFieldId)) {

@@ -12,7 +12,6 @@
 {% block page_content %}
     <div class="m-4">
         <input type="hidden" id="encours-min-location-filter" value="{{ minLocationFilter }}"/>
-        <input type="hidden" id="encours-max-location-filter" value="{{ maxLocationFilter }}">
         <div class="row">
             <div class="col-auto ml-auto"><h2 class="text-white">Actualisé le {{ "now"|date("d/m/Y à H:i", "Europe/Paris") }}</h2></div>
         </div>
@@ -23,7 +22,21 @@
             {% for emplacement in emplacements %}
                 <div class="col-6 mb-3 {{ (loop.index0 % 2 == 0) ? 'pr-2' : 'pl-2' }} block-encours d-none">
                     <div class="wii-page-card">
-                        <h1 class="mt-0 mb-3">{{ emplacement.label }}</h1>
+                        <div class="row justify-content-between align-items-center mb-3">
+                            <div class="col-auto">
+                                <h1 class="m-0">{{ emplacement.label }}</h1>
+                            </div>
+                            {% if hasRight(constant('App\\Entity\\Menu::TRACA'), constant('App\\Entity\\Action::EXPORT')) %}
+                                <div class="col-auto">
+                                    <button type="button"
+                                            class="btn btn-primary split-button btn-ripple"
+                                            onclick="saveExportFile('ongoing_pack_csv', false, { emplacement: {{ emplacement.id }} })">
+                                        <i class="fa fa-file-csv mr-2" style="padding: 0 2px"></i>
+                                        Exporter au format CSV
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </div>
                         <table class="table encours-table w-100"
                                id="{{ emplacement.id }}">
                         </table>

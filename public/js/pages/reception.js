@@ -6,9 +6,10 @@ let tableReception;
 $(function () {
     $('.select2').select2();
     initDateTimePicker();
-    Select2.init($('#statut'), 'Statuts');
+    Select2Old.init($('#statut'), 'Statuts');
+    Select2Old.initFree($('.select2-free'), 'N° de commande');
     initOnTheFlyCopies($('.copyOnTheFly'));
-    Select2.user($('.filters .ajax-autocomplete-user'), 'Destinataire(s)');
+    Select2Old.user($('.filters .ajax-autocomplete-user'), 'Destinataire(s)');
 
     // RECEPTION
     let pathTableReception = Routing.generate('reception_api', true);
@@ -19,6 +20,9 @@ $(function () {
         ajax: {
             "url": pathTableReception,
             "type": "POST",
+            'data': {
+                'purchaseRequestFilter': $('#purchaseRequest').val()
+            }
         },
         drawConfig: {
             needsSearchOverride: true,
@@ -53,13 +57,21 @@ $(function () {
     InitModal($modalReceptionNew, $submitNewReception, urlReceptionIndex);
 
     // filtres enregistrés en base pour chaque utilisateur
-    let path = Routing.generate('filter_get_by_page');
-    let params = JSON.stringify(PAGE_RECEPTION);
-    $.post(path, params, function (data) {
-        displayFiltersSup(data);
-    }, 'json');
+    if ($('#purchaseRequestFilter').val() !== '0') {
+        const purchaseRequestFilter = $('#purchaseRequestFilter').val().split(',');
+        purchaseRequestFilter.forEach(function (filter) {
+            let option = new Option(filter, filter, true, true);
+            $('#commandList').append(option).trigger('change');
+        })
+    } else {
+        let path = Routing.generate('filter_get_by_page');
+        let params = JSON.stringify(PAGE_RECEPTION);
+        $.post(path, params, function (data) {
+            displayFiltersSup(data);
+        }, 'json');
+    }
 
-    Select2.provider($('.filters').find('.ajax-autocomplete-fournisseur'), 'Fournisseurs');
+    Select2Old.provider($('.filters').find('.ajax-autocomplete-fournisseur'), 'Fournisseurs');
 });
 
 function initNewReceptionEditor(modal) {
@@ -71,9 +83,9 @@ function initNewReceptionEditor(modal) {
         initEditorInModal(modal);
         editorNewReceptionAlreadyDone = true;
     }
-    Select2.provider($('.ajax-autocomplete-fournisseur'));
-    Select2.location($('.ajax-autocomplete-location'));
-    Select2.carrier($modal.find('.ajax-autocomplete-transporteur'));
+    Select2Old.provider($('.ajax-autocomplete-fournisseur'));
+    Select2Old.location($('.ajax-autocomplete-location'));
+    Select2Old.carrier($modal.find('.ajax-autocomplete-transporteur'));
     initDateTimePicker('#dateCommande, #dateAttendue');
 
     $('.date-cl').each(function() {
