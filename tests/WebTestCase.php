@@ -2,6 +2,7 @@
 
 namespace App\Tests;
 
+use App\Entity\Role;
 use App\Entity\Utilisateur;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
@@ -20,16 +21,40 @@ class WebTestCase extends SfWebTestCase {
         $this->client = static::createClient();
     }
 
-    protected function createAuthenticatedClient(string $login = "admin"): KernelBrowser {
+    private function createTestUser(EntityManagerInterface $manager, string $login): Utilisateur {
+        $user = $manager->getRepository(Utilisateur::class)->findByUsername($login);
+        $role = $manager->getRepository(Role::class)->findByLabel(Role::SUPER_ADMIN);
+        $user = $user
+            ->setUsername("unittest")
+            ->setEmail("$login@test.example.com")
+            ->setPassword("djezoijdioezjiodzej")
+            ->setStatus(true)
+            ->setMobileLoginKey("hellologintest")
+            ->setRole($role);
+        $manager->flush();
+        if (!$user) {
+            $role = $manager->getRepository(Role::class)->findByLabel(Role::SUPER_ADMIN);
+
+            $user = (new Utilisateur())
+                ->setUsername("unittest")
+                ->setEmail("$login@test.example.com")
+                ->setPassword("djezoijdioezjiodzej")
+                ->setStatus(true)
+                ->setMobileLoginKey("hellologintest")
+            ->setRole($role);
+
+            $manager->persist($user);
+            $manager->flush();
+        }
+
+        return $user;
+    }
+
+    protected function createAuthenticatedClient(string $login = "unittest"): KernelBrowser {
+        $manager = static::$container->get(EntityManagerInterface::class);
         $client = $this->client();
-        $user = static::$container->get(EntityManagerInterface::class)
-            ->getRepository(Utilisateur::class)
-            ->findByUsername($login);
-        $users = static::$container->get(EntityManagerInterface::class)
-            ->getRepository(Utilisateur::class)
-            ->findAll();
-        echo count($users);
-        return $client->loginUser($user);
+
+        return $client->loginUser($this->createTestUser($manager, $login));
     }
 
     protected function createAnonymousClient(): KernelBrowser {
