@@ -150,7 +150,7 @@ class InventoryEntryRepository extends EntityRepository
 
         $queryBuilder = $this->createQueryBuilder('entry')
             ->select('entry.id')
-            ->addSelect('article.reference')
+            ->addSelect('referenceArticle.reference')
             ->addSelect('article.label')
             ->addSelect('articleLocation.label as location')
             ->addSelect('article.quantite as quantity')
@@ -160,6 +160,8 @@ class InventoryEntryRepository extends EntityRepository
             ->addSelect("($isTreatableDQL) AS isTreatable")
             ->join('entry.article', 'article')
             ->leftJoin('article.emplacement', 'articleLocation')
+            ->leftJoin('article.articleFournisseur', 'articleFournisseur')
+            ->leftJoin('articleFournisseur.referenceArticle', 'referenceArticle')
             ->andWhere('entry.anomaly = 1')
             ->setParameter('articleStatusAvailable', Article::STATUT_ACTIF)
             ->setParameter('articleStatusDispute', Article::STATUT_EN_LITIGE)

@@ -23,10 +23,12 @@ class AlertRepository extends EntityRepository {
         if(!is_array($types)) {
             $types = [$types];
         }
-
-        return $this->createQueryBuilder("a")
-            ->where("a.reference = :reference")
-            ->andWhere("a.type IN (:types)")
+        return $this->createQueryBuilder("alert")
+            ->where("referenceArticle.reference = :reference")
+            ->leftJoin("alert.article","article")
+            ->leftJoin("article.articleFournisseur", "articleFournisseur")
+            ->leftJoin("articleFournisseur.referenceArticle", "referenceArticle")
+            ->andWhere("alert.type IN (:types)")
             ->setParameter("reference", $reference)
             ->setParameter("types", $types)
             ->getQuery()

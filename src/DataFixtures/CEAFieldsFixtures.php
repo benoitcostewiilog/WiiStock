@@ -179,7 +179,7 @@ class CEAFieldsFixtures extends Fixture implements FixtureGroupInterface {
                     ($oem && $this->sanitize($supplier->getCodeReference()) == $this->sanitize($oem))
                     || (!$oem && $this->sanitize($supplier->getCodeReference()) == "A_DETERMINER")
                 )
-                && $this->sanitize($article->getReference()) == "A DETERMINER"
+                && $this->sanitize($article->getArticleFournisseur()->getReferenceArticle()->getReference()) == "A DETERMINER"
             );
 
             if($concerned) {
@@ -225,7 +225,7 @@ class CEAFieldsFixtures extends Fixture implements FixtureGroupInterface {
             $supplier = $article->getFournisseur();
             $concerned = (
                 (!$oem || $this->sanitize($supplier->getCodeReference()) == $oem->getCodeReference())
-                && $this->sanitize($article->getReference()) == $oemReference
+                && $this->sanitize($article->getArticleFournisseur()->getReferenceArticle()->getReference()) == $oemReference
             );
 
             if($concerned) {

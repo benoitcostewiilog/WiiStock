@@ -224,7 +224,7 @@ class Article extends FreeFieldEntity implements PairedEntity
 
     public function getReference(): ?string
     {
-        return $this->reference;
+        return $this->getArticleFournisseur()->getReferenceArticle()->getReference();
     }
 
     public function setReference(?string $reference): self

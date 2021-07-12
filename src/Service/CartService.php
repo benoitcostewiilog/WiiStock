@@ -61,7 +61,7 @@ class CartService {
             "label" => $reference->getLibelle(),
             "reference" => $reference->getReference(),
             "supplierReference" => Stream::from($reference->getArticlesFournisseur())
-                ->map(fn(ArticleFournisseur $article) => $article->getReference())
+                ->map(fn(ArticleFournisseur $article) => $article->getArticleFournisseur()->getReferenceArticle()->getReference())
                 ->join(";"),
             "type" => $reference->getType()->getLabel(),
             "availableQuantity" => $reference->getQuantiteDisponible(),

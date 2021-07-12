@@ -320,13 +320,13 @@ class LitigeController extends AbstractController
     {
         $rows = [];
         $articlesInLitige = $litige->getFiveLastArticles();
-
         foreach ($articlesInLitige as $article) {
+            $referenceArticle = $article->getArticleFournisseur()->getReferenceArticle()->getReference() ;
             $rows[] = [
                 'codeArticle' => $article ? $article->getBarCode() : '',
                 'status' => $article->getStatut() ? $article->getStatut()->getNom() : '',
                 'libelle' => $article->getLabel() ? $article->getLabel() : '',
-                'reference' => $article->getReference() ? $article->getReference() : '',
+                'reference' => $referenceArticle ? $referenceArticle : '',
                 'quantity' => $article ? $article->getQuantite() : 'non renseigné',
             ];
         }

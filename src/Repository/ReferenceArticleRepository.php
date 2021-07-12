@@ -1202,4 +1202,16 @@ class ReferenceArticleRepository extends EntityRepository {
         ];
     }
 
+    public function getReferencesByRefAndDate($refPrefix, $date)
+    {
+        $entityManager = $this->getEntityManager();
+        $query = $entityManager->createQuery(
+            'SELECT refArticle.reference
+            FROM App\Entity\ReferenceArticle refArticle
+            WHERE refArticle.reference LIKE :refPrefix'
+        )->setParameter('refPrefix', $refPrefix . $date . '%');
+
+        return array_column($query->execute(), 'reference');
+    }
+
 }

@@ -231,6 +231,8 @@ class InventoryMissionRepository extends EntityRepository
             ->from('App\Entity\Article', 'a')
             ->join('a.inventoryMissions', 'm')
             ->leftJoin('a.inventoryEntries', 'ie', Join::WITH, 'ie.mission = m')
+            ->leftJoin('a.articleFournisseur', 'articleFournisseur')
+            ->leftJoin('articleFournisseur.referenceArticle', 'referenceArticle')
             ->where('m = :mission')
             ->setParameter('mission', $mission);
 
@@ -265,7 +267,7 @@ class InventoryMissionRepository extends EntityRepository
                 $search = $params->get('search')['value'];
                 if (!empty($search)) {
                     $qb
-                        ->andWhere('a.label LIKE :value OR a.reference LIKE :value')
+                        ->andWhere('a.label LIKE :value OR referenceArticle.reference LIKE :value')
                         ->setParameter('value', '%' . $search . '%');
                 }
                 $countQuery = QueryCounter::count($qb, 'a');

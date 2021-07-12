@@ -303,7 +303,7 @@ class ArticleDataService
 
         $refArticle = $referenceArticleRepository->find($data['refArticle']);
         $refReferenceArticle = $refArticle->getReference();
-        $references = $articleRepository->getReferencesByRefAndDate($refReferenceArticle, $formattedDate);
+        $references = $referenceArticleRepository->getReferencesByRefAndDate($refReferenceArticle, $formattedDate);
 
         $highestCpt = 0;
         foreach ($references as $reference) {

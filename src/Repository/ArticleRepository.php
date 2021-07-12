@@ -61,9 +61,9 @@ class ArticleRepository extends EntityRepository {
 	{
 		$entityManager = $this->getEntityManager();
 		$query = $entityManager->createQuery(
-			'SELECT a.reference
-            FROM App\Entity\Article a
-            WHERE a.reference LIKE :refPrefix'
+			'SELECT refArticle.reference
+            FROM App\Entity\ReferenceArticle refArticle
+            WHERE refArticle.reference LIKE :refPrefix'
 		)->setParameter('refPrefix', $refPrefix . $date . '%');
 
 		return array_column($query->execute(), 'reference');
@@ -248,6 +248,26 @@ class ArticleRepository extends EntityRepository {
             ->execute();
 	}
 
+	// A supprimer ? je ne trouve pas où est utiliser cette fonction
+//    public function getRefByRecep($id)
+//    {
+//        $entityManager = $this->getEntityManager();
+//        $query = $entityManager->createQuery(
+//            "SELECT a.reference
+//            FROM App\Entity\Article a
+//            JOIN a.reception r
+//            WHERE r.id =:id
+//            "
+//        )->setParameter('id', $id);
+//        return $query->getResult();
+//    }
+
+    /**
+     * @param ReferenceArticle $refArticle
+     * @param array $statusNames
+     * @param string|null $refArticleStatusName
+     * @return Article[]
+     */
 	public function findByRefArticleAndStatut($refArticle, array $statusNames, string $refArticleStatusName = null)
 	{
 
@@ -566,10 +586,12 @@ class ArticleRepository extends EntityRepository {
         /** @lang DQL */
             "SELECT a1
 			FROM App\Entity\Article a1
-			WHERE a1.reference IN (
-				SELECT a2.reference FROM App\Entity\Article a2
-				GROUP BY a2.reference
-				HAVING COUNT(a2.reference) > 1)"
+			LEFT JOIN a1.articleFournisseur af2
+			LEFT JOIN af2.referenceArticle ra2
+            WHERE ra2.reference IN (
+                SELECT a2.reference FROM App\Entity\Article a2
+                GROUP BY ra2.reference
+                HAVING COUNT(ra2.reference) > 1)"
         );
 
         return $query->execute();
@@ -579,17 +601,16 @@ class ArticleRepository extends EntityRepository {
     {
         $em = $this->getEntityManager();
         $query = $em->createQuery(
-            "SELECT a.reference,
-                         e.label as location,
-                         a.label,
-                         (CASE
-                            WHEN a.quantiteAPrelever IS NULL THEN a.quantite
-                            ELSE a.quantiteAPrelever
-                         END) as quantity,
+            "SELECT  ra.reference as reference_article_reference,
+                     e.label as location,
+                     a.label,
+                     (CASE
+                        WHEN a.quantiteAPrelever IS NULL THEN a.quantite
+                        ELSE a.quantiteAPrelever
+                        END) as quantity,
                          0 as is_ref,
                          p.id as id_prepa,
-                         a.barCode,
-                         ra.reference as reference_article_reference
+                         a.barCode
 			FROM App\Entity\Article a
 			LEFT JOIN a.emplacement e
 			JOIN a.preparation p
@@ -605,7 +626,7 @@ class ArticleRepository extends EntityRepository {
 
     public function getArticlePrepaForPickingByUser($user, array $preparationIdsFilter = []) {
         $queryBuilder = $this->createQueryBuilderActifWithoutDemand()
-            ->select('DISTINCT article.reference AS reference')
+            ->select('DISTINCT refArticle.reference AS reference')
             ->addSelect('article.label AS label')
             ->addSelect('emplacement.label AS location')
             ->addSelect('article.quantite AS quantity')
@@ -627,6 +648,8 @@ class ArticleRepository extends EntityRepository {
                 END) AS management_order
             ')
             ->leftJoin('article.emplacement', 'emplacement')
+            ->leftJoin('a.articleFournisseur', 'articleFournisseur')
+            ->leftJoin('articleFournisseur.referenceArticle', 'refArticle')
             ->join('referenceArticle.ligneArticlePreparations', 'ligneArticlePreparation')
             ->join('ligneArticlePreparation.preparation', 'preparation')
             ->join('preparation.statut', 'statutPreparation')
@@ -654,9 +677,11 @@ class ArticleRepository extends EntityRepository {
         $em = $this->getEntityManager();
         $query = $em->createQuery(
         /** @lang DQL */
-            "SELECT a.reference, e.label as location, a.label, a.quantitePrelevee as quantity, 0 as is_ref, l.id as id_livraison, a.barCode
+            "SELECT refarticle.reference, e.label as location, a.label, a.quantitePrelevee as quantity, 0 as is_ref, l.id as id_livraison, a.barCode
 			FROM App\Entity\Article a
 			LEFT JOIN a.emplacement e
+			LEFT JOIN a.articleFournisseur articleFourn
+			LEFT JOIN articleFourn.reference_article refarticle
 			JOIN a.preparation p
 			JOIN p.livraison l
 			JOIN l.statut s
@@ -775,7 +800,9 @@ class ArticleRepository extends EntityRepository {
         /** @lang DQL */
             "SELECT a
 			FROM App\Entity\Article a
-			WHERE a.reference = :reference"
+			LEFT JOIN a.articleFournisseur articleFourn
+			LEFT JOIN articleFourn.reference_article refarticle
+			WHERE refarticle.reference = :reference"
 		)->setParameter('reference', $reference);
 
 		return $query->getOneOrNullResult();
@@ -787,7 +814,9 @@ class ArticleRepository extends EntityRepository {
 		$query = $em->createQuery(
 			"SELECT a
 			FROM App\Entity\Article a
-			WHERE a.reference = :reference"
+			LEFT JOIN a.articleFournisseur articleFourn
+			LEFT JOIN articleFourn.reference_article refarticle
+			WHERE refarticle.reference = :reference"
 		)->setParameter('reference', $reference);
 
 		return $query->execute();
